@@ -1,0 +1,151 @@
+version: "3.9"
+
+# ══════════════════════════════════════════════════════════
+#  Smart Media Fetcher — Docker Compose
+#  Services: nginx · backend · celery-worker · celery-beat
+#            postgresql · redis
+# ══════════════════════════════════════════════════════════
+
+x-backend-common: &backend-common
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+  env_file: .env
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  volumes:
+    - temp_files:/tmp/smf_downloads
+    - logs:/var/log/smf
+  networks:
+    - internal
+
+services:
+
+  # ── Nginx Reverse Proxy ──────────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend:/usr/share/nginx/frontend:ro
+      - nginx_cache:/var/cache/nginx
+      - /etc/letsencrypt:/etc/letsencrypt:ro   # SSL certs (Let's Encrypt)
+    depends_on:
+      - backend
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── FastAPI Backend ──────────────────────────────────
+  backend:
+    <<: *backend-common
+    restart: unless-stopped
+    expose:
+      - "8000"
+    command: >
+      gunicorn app.main:app
+      --worker-class uvicorn.workers.UvicornWorker
+      --workers 4
+      --bind 0.0.0.0:8000
+      --timeout 120
+      --access-logfile -
+      --error-logfile -
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+
+  # ── Celery Worker (background tasks) ─────────────────
+  celery-worker:
+    <<: *backend-common
+    restart: unless-stopped
+    command: >
+      celery -A app.tasks.celery_app worker
+      --loglevel=info
+      --concurrency=4
+      --max-tasks-per-child=100
+
+  # ── Celery Beat (scheduled tasks) ────────────────────
+  celery-beat:
+    <<: *backend-common
+    restart: unless-stopped
+    command: >
+      celery -A app.tasks.celery_app beat
+      --loglevel=info
+      --scheduler celery.beat:PersistentScheduler
+
+  # ── Celery Flower (monitoring UI) ────────────────────
+  flower:
+    <<: *backend-common
+    restart: unless-stopped
+    ports:
+      - "5555:5555"
+    command: >
+      celery -A app.tasks.celery_app flower
+      --port=5555
+      --basic-auth=${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-changeme}
+    profiles:
+      - monitoring
+
+  # ── PostgreSQL Database ──────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB:       ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Don't expose DB port in production — internal only
+
+  # ── Redis Cache & Message Broker ─────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --requirepass ${REDIS_PASSWORD:-changeme}
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  temp_files:
+  logs:
+  nginx_cache:
