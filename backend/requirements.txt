@@ -10,7 +10,7 @@ alembic==1.13.1
 psycopg2-binary==2.9.9
 
 # ── Redis / Caching ────────────────────────────────────────
-redis[asyncio]==5.0.1
+redis==5.0.1
 
 # ── Task Queue ─────────────────────────────────────────────
 celery[redis]==5.3.6
