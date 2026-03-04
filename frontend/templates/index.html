@@ -1038,9 +1038,51 @@ authModal.addEventListener('click', e => { if (e.target === authModal) authModal
 document.getElementById('switchToRegister').addEventListener('click', () => { loginForm.style.display='none'; registerForm.style.display=''; });
 document.getElementById('switchToLogin').addEventListener('click', () => { loginForm.style.display=''; registerForm.style.display='none'; });
 
+// ══════════════════════════════════════════════════════════
+//  LOGOUT
+// ══════════════════════════════════════════════════════════
+function handleLogout() {
+  authToken = null;
+  localStorage.removeItem('smf_token');
+  // Reset header buttons back to original
+  const loginBtn    = document.getElementById('openLogin');
+  const registerBtn = document.getElementById('openRegister');
+  loginBtn.textContent = 'Log in';
+  loginBtn.style.background = '';
+  loginBtn.style.color = '';
+  loginBtn.onclick = () => {
+    loginForm.style.display = ''; registerForm.style.display = 'none';
+    authModal.classList.add('show');
+  };
+  registerBtn.textContent = 'Sign up';
+  registerBtn.style.display = '';
+  registerBtn.onclick = () => {
+    loginForm.style.display = 'none'; registerForm.style.display = '';
+    authModal.classList.add('show');
+  };
+  showStatus('info', '👋 You have been logged out successfully.');
+}
+
+// ── Set logged-in UI state ──────────────────────────────
+function setLoggedInUI() {
+  const loginBtn    = document.getElementById('openLogin');
+  const registerBtn = document.getElementById('openRegister');
+  loginBtn.textContent = '✓ Logged in';
+  registerBtn.textContent = '🚪 Logout';
+  registerBtn.style.display = '';
+  registerBtn.style.background = 'transparent';
+  loginBtn.onclick    = handleLogout;
+  registerBtn.onclick = handleLogout;
+}
+
+// ── LOGIN ───────────────────────────────────────────────
 document.getElementById('loginSubmit').addEventListener('click', async () => {
-  const email = document.getElementById('loginEmail').value;
+  const email = document.getElementById('loginEmail').value.trim();
   const pass  = document.getElementById('loginPassword').value;
+
+  if (!email) { alert('Please enter your email.'); return; }
+  if (!pass)  { alert('Please enter your password.'); return; }
+
   try {
     const res  = await fetch(`${API}/auth/login`, {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -1051,17 +1093,42 @@ document.getElementById('loginSubmit').addEventListener('click', async () => {
     authToken = data.access_token;
     localStorage.setItem('smf_token', authToken);
     authModal.classList.remove('show');
-    document.getElementById('openLogin').textContent = '✓ Logged in';
-    document.getElementById('openRegister').style.display = 'none';
+    setLoggedInUI();
+    showStatus('success', '✅ Logged in successfully!');
   } catch (e) {
     alert('Login error: ' + e.message);
   }
 });
 
+// ── REGISTER ────────────────────────────────────────────
 document.getElementById('registerSubmit').addEventListener('click', async () => {
-  const email    = document.getElementById('regEmail').value;
-  const username = document.getElementById('regUsername').value;
+  const email    = document.getElementById('regEmail').value.trim();
+  const username = document.getElementById('regUsername').value.trim();
   const password = document.getElementById('regPassword').value;
+
+  // ── Client-side validation ──────────────────────────
+  if (!email) {
+    alert('❌ Please enter your email.'); return;
+  }
+  if (!username) {
+    alert('❌ Please enter a username.'); return;
+  }
+  if (username.length < 3) {
+    alert('❌ Username must be at least 3 characters.'); return;
+  }
+  if (password.length < 8) {
+    alert('❌ Password must be at least 8 characters.\n\nPlease use 8 or more characters.'); return;
+  }
+  if (password.length > 72) {
+    alert('❌ Password is too long.\n\nMaximum allowed is 72 characters. Please shorten your password.'); return;
+  }
+  if (!/[A-Z]/.test(password)) {
+    alert('❌ Password must contain at least one UPPERCASE letter.\n\nExample: Test1234'); return;
+  }
+  if (!/[0-9]/.test(password)) {
+    alert('❌ Password must contain at least one number.\n\nExample: Test1234'); return;
+  }
+
   try {
     const res  = await fetch(`${API}/auth/register`, {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -1069,16 +1136,47 @@ document.getElementById('registerSubmit').addEventListener('click', async () => 
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Registration failed.');
-    alert('✅ Account created! Please log in.');
+    alert('✅ Account created successfully!\n\nPlease log in with your credentials.');
     loginForm.style.display = ''; registerForm.style.display = 'none';
+    // Pre-fill email on login form
+    document.getElementById('loginEmail').value = email;
   } catch (e) {
     alert('Registration error: ' + e.message);
+  }
+});
+
+// ── Show password rules as user types ──────────────────
+document.getElementById('regPassword').addEventListener('input', function() {
+  const val = this.value;
+  const rules = [];
+  if (val.length < 8)        rules.push('• At least 8 characters');
+  if (val.length > 72)       rules.push('• Maximum 72 characters');
+  if (!/[A-Z]/.test(val))    rules.push('• At least 1 uppercase letter');
+  if (!/[0-9]/.test(val))    rules.push('• At least 1 number');
+
+  let hint = document.getElementById('passwordHint');
+  if (!hint) {
+    hint = document.createElement('div');
+    hint.id = 'passwordHint';
+    hint.style.cssText = 'font-size:11px;margin-top:6px;line-height:1.7;';
+    this.parentNode.appendChild(hint);
+  }
+  if (rules.length > 0 && val.length > 0) {
+    hint.style.color = 'var(--red)';
+    hint.innerHTML = rules.join('<br>');
+  } else if (val.length > 0) {
+    hint.style.color = 'var(--green)';
+    hint.innerHTML = '✅ Password looks good!';
+  } else {
+    hint.innerHTML = '';
   }
 });
 
 // ══════════════════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════════════════
+// Check if already logged in from previous session
+if (authToken) { setLoggedInUI(); }
 renderHistory();
 </script>
 </body>
