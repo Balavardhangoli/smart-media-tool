@@ -41,11 +41,14 @@ async def lifespan(app: FastAPI):
     Path(settings.temp_dir).mkdir(parents=True, exist_ok=True)
     
     # Auto create all database tables on startup
-    from app.db.session import engine, Base
-    from app.db import models  # noqa - registers all models
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("database_tables_created")
+    try:
+        from app.db.session import engine, Base
+        from app.db import models  # noqa
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("database_tables_created_successfully")
+    except Exception as e:
+        logger.error(f"database_error: {e}")
     
     yield
     # Shutdown
