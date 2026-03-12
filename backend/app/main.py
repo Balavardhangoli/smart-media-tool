@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("startup", env=settings.app_env, version="1.0.0")
     Path(settings.temp_dir).mkdir(parents=True, exist_ok=True)
-    
+
     # Auto create all database tables on startup
     try:
         from app.db.session import engine, Base
@@ -49,8 +49,9 @@ async def lifespan(app: FastAPI):
         logger.info("database_tables_created_successfully")
     except Exception as e:
         logger.error(f"database_error: {e}")
-    
+
     yield
+
     # Shutdown
     await close_redis()
     logger.info("shutdown")
