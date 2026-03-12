@@ -8,7 +8,6 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -25,7 +24,7 @@ from app.services.cache import close_redis
 setup_logging()
 logger = get_logger(__name__)
 
-# ── Rate limiter (slowapi + Redis) ─────────────────────────
+# ── Rate limiter ──────────────────────────────────────────
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=[f"{settings.rate_limit_requests_per_minute}/minute"],
@@ -43,12 +42,12 @@ async def lifespan(app: FastAPI):
     # Auto create all database tables on startup
     try:
         from app.db.session import engine, Base
-        from app.db import models  # noqa
+        from app.db import models  # noqa — registers all models
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         logger.info("database_tables_created_successfully")
     except Exception as e:
-        logger.error(f"database_error: {e}")
+        logger.error(f"database_setup_error: {e}")
 
     yield
 
@@ -62,17 +61,17 @@ app = FastAPI(
     title="Smart Media Fetcher API",
     description="Production-grade universal media downloader API.",
     version="1.0.0",
-    docs_url="/api/docs" if not settings.is_production else None,
-    redoc_url="/api/redoc" if not settings.is_production else None,
-    openapi_url="/api/openapi.json" if not settings.is_production else None,
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
     lifespan=lifespan,
 )
 
-# ── Middleware: Rate Limiting ──────────────────────────────
+# ── Rate Limiting ──────────────────────────────────────────
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# ── Middleware: CORS ───────────────────────────────────────
+# ── CORS ──────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -81,33 +80,37 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-API-Key"],
 )
 
-# ── Middleware: Security headers ───────────────────────────
+# ── Security headers ───────────────────────────────────────
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
-    response.headers["X-Content-Type-Options"]    = "nosniff"
-    response.headers["X-Frame-Options"]           = "DENY"
-    response.headers["X-XSS-Protection"]          = "1; mode=block"
-    response.headers["Referrer-Policy"]           = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"]        = "geolocation=(), microphone=(), camera=()"
-    if settings.is_production:
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"]        = "DENY"
+    response.headers["X-XSS-Protection"]       = "1; mode=block"
+    response.headers["Referrer-Policy"]        = "strict-origin-when-cross-origin"
     return response
 
-# ── Middleware: Request logging ────────────────────────────
+# ── Request logging ────────────────────────────────────────
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    logger.info("request_start", method=request.method, path=request.url.path,
+    logger.info("request_start",
+                method=request.method,
+                path=request.url.path,
                 ip=request.client.host if request.client else "unknown")
     response = await call_next(request)
-    logger.info("request_end", method=request.method, path=request.url.path,
+    logger.info("request_end",
+                method=request.method,
+                path=request.url.path,
                 status=response.status_code)
     return response
 
 # ── Global exception handler ───────────────────────────────
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.error("unhandled_exception", path=request.url.path, error=str(exc), exc_info=True)
+    logger.error("unhandled_exception",
+                 path=request.url.path,
+                 error=str(exc),
+                 exc_info=True)
     return JSONResponse(
         status_code=500,
         content={"detail": "An internal server error occurred. Please try again."},
@@ -123,10 +126,14 @@ app.include_router(history.router,  prefix=settings.api_v1_prefix)
 async def health_check():
     return {"status": "ok", "service": settings.app_name, "version": "1.0.0"}
 
-# ── Serve frontend static files ────────────────────────────
+# ── Serve frontend ─────────────────────────────────────────
 frontend_dir = Path(__file__).parent.parent.parent / "frontend"
 if frontend_dir.exists():
-    app.mount("/static", StaticFiles(directory=str(frontend_dir / "static")), name="static")
+    app.mount(
+        "/static",
+        StaticFiles(directory=str(frontend_dir / "static")),
+        name="static",
+    )
     templates = Jinja2Templates(directory=str(frontend_dir / "templates"))
 
     @app.get("/", include_in_schema=False)
