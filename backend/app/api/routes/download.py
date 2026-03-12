@@ -107,14 +107,19 @@ async def analyze_url(
         await cache_set(cache_key, response.model_dump())
 
     # ── Log to DB (non-blocking) ───────────────────────────
-    asyncio.create_task(_log_download(
-        db=db, url=url,
-        platform=result.platform or "unknown",
+  try:
+    entry = DownloadHistory(
+        source_url=url,
         media_type=detection.media_type.value,
-        ip=ip,
+        platform=result.platform or "unknown",
         status="completed" if result.success else "failed",
-        error=result.error,
-    ))
+        error_msg=result.error,
+        ip_address=ip,
+    )
+    db.add(entry)
+    await db.commit()
+except Exception:
+    pass
 
     return response
 
