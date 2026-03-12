@@ -2,11 +2,6 @@
 services/downloader.py
 Main download orchestrator. Routes requests to the correct handler
 based on the DetectionResult from detector.py.
-
-Each handler returns a DownloadResult containing either:
-  - A direct stream URL
-  - A list of media options (for social platforms)
-  - An error
 """
 import asyncio
 import json
@@ -26,7 +21,7 @@ from app.utils.ssrf_guard import validate_url
 
 logger = get_logger(__name__)
 
-# ── Common HTTP headers (mimic browser) ───────────────────
+# ── Common HTTP headers ────────────────────────────────────
 BROWSER_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -37,13 +32,21 @@ BROWSER_HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
 
+# ── Cobalt API headers ─────────────────────────────────────
+COBALT_HEADERS = {
+    "Accept": "application/json",
+    "Content-Type": "application/json",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+}
+
+COBALT_API = "https://api.cobalt.tools/"
+
 
 @dataclass
 class MediaOption:
-    """A single downloadable media item presented to the user."""
-    label:      str                    # e.g. "1080p MP4", "MP3 Audio"
+    label:      str
     url:        str
-    media_type: str                    # image | video | audio | document
+    media_type: str
     mime_type:  Optional[str] = None
     file_size:  Optional[int] = None
     width:      Optional[int] = None
@@ -75,195 +78,70 @@ def _make_client() -> httpx.AsyncClient:
 
 
 # ══════════════════════════════════════════════════════════
-#  ORCHESTRATOR
+#  COBALT API HELPER
 # ══════════════════════════════════════════════════════════
-async def process_url(detection: DetectionResult, quality: str = "best") -> DownloadResult:
-    """Route to the correct handler based on detected platform."""
-    handlers = {
-        Platform.DIRECT:    handle_direct,
-        Platform.YOUTUBE:   handle_youtube,
-        Platform.INSTAGRAM: handle_instagram,
-        Platform.TIKTOK:    handle_yt_dlp,
-        Platform.TWITTER:   handle_yt_dlp,
-        Platform.FACEBOOK:  handle_yt_dlp,
-        Platform.REDDIT:    handle_reddit,
-        Platform.VIMEO:     handle_yt_dlp,
-        Platform.PINTEREST: handle_pinterest,
-        Platform.WEBPAGE:   handle_webpage,
-    }
-    handler = handlers.get(detection.platform, handle_webpage)
-    try:
-        result = await handler(detection, quality=quality)
-        result.platform = detection.platform.value
-        return result
-    except Exception as e:
-        logger.error("download_handler_error", platform=detection.platform, error=str(e))
-        return DownloadResult(success=False, error=str(e), platform=detection.platform.value)
-
-
-# ══════════════════════════════════════════════════════════
-#  DIRECT FILE HANDLER
-# ══════════════════════════════════════════════════════════
-async def handle_direct(detection: DetectionResult, **kwargs) -> DownloadResult:
-    """Handle direct media file URLs (.jpg, .mp4, .pdf, etc.)."""
-    url = detection.url
-
-    async with _make_client() as client:
-        # HEAD request to get metadata without downloading
-        try:
-            head = await client.head(url)
-            content_type  = head.headers.get("content-type", "")
-            content_length = head.headers.get("content-length")
-            file_size = int(content_length) if content_length else None
-        except Exception:
-            content_type, file_size = "", None
-
-    # Validate file size
-    if file_size and file_size > settings.max_file_size_bytes:
-        return DownloadResult(
-            success=False,
-            error=f"File size ({file_size / 1024**2:.1f} MB) exceeds the maximum allowed ({settings.max_file_size_mb} MB).",
-        )
-
-    path   = urlparse(url).path
-    name   = sanitize_filename(path.split("/")[-1] or "download")
-    ext    = extension_from_mime(content_type) or Path(name).suffix
-    label  = f"{detection.media_type.value.title()} — {name}"
-
-    return DownloadResult(
-        success=True,
-        title=name,
-        options=[
-            MediaOption(
-                label=label,
-                url=url,
-                media_type=detection.media_type.value,
-                mime_type=content_type or None,
-                file_size=file_size,
-                format=ext.lstrip("."),
-            )
-        ],
-    )
-
-
-# ══════════════════════════════════════════════════════════
-#  YOUTUBE HANDLER (via yt-dlp)
-# ══════════════════════════════════════════════════════════
-async def handle_youtube(detection: DetectionResult, quality: str = "best", **kwargs) -> DownloadResult:
-    """Use Cobalt API for YouTube downloads."""
-    url = detection.url
-    try:
-        async with _make_client() as client:
-       resp = await client.post(
-    "https://api.cobalt.tools/",
-    json={
+async def _cobalt_download(url: str, mode: str = "auto") -> DownloadResult:
+    """
+    Call Cobalt API to get download URL.
+    Supports YouTube, Instagram, TikTok, Twitter, Facebook, Vimeo.
+    """
+    payload = {
         "url": url,
         "videoQuality": "1080",
         "filenameStyle": "pretty",
-        "downloadMode": "auto",
-    },
-    headers={
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0",
-    },
-    timeout=30,
-)
-            data = resp.json()
-    except Exception as e:
-        return DownloadResult(success=False, error=f"Could not connect to download service: {e}")
+        "downloadMode": mode,
+    }
 
-    options = []
-    status  = data.get("status", "")
-
-    if status == "error":
-        code = data.get("error", {}).get("code", "unknown")
-        return DownloadResult(success=False, error=f"Download service error: {code}")
-
-    if status in ("redirect", "stream", "tunnel"):
-        dl_url = data.get("url")
-        if dl_url:
-            options.append(MediaOption(
-                label="Video — Best Quality (MP4)",
-                url=dl_url,
-                media_type="video",
-                format="mp4",
-            ))
-
-    if status == "picker":
-        for i, item in enumerate(data.get("picker", [])):
-            item_url = item.get("url", "")
-            if item_url:
-                options.append(MediaOption(
-                    label=f"Video Option {i+1}",
-                    url=item_url,
-                    media_type="video",
-                    format="mp4",
-                    thumbnail=item.get("thumb"),
-                ))
-
-    if not options:
-        return DownloadResult(
-            success=False,
-            error="YouTube blocked this request. Try again in a few seconds.",
-        )
-
-    return DownloadResult(
-        success=True,
-        title="YouTube Video",
-        options=options,
-    )
-
-# ══════════════════════════════════════════════════════════
-#  INSTAGRAM HANDLER
-# ══════════════════════════════════════════════════════════
-async def handle_instagram(detection: DetectionResult, **kwargs) -> DownloadResult:
-    """Use Cobalt API for Instagram downloads."""
-    url = detection.url
     try:
-        async with _make_client() as client:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(30),
+            follow_redirects=True,
+        ) as client:
             resp = await client.post(
-                "https://api.cobalt.tools/",
-                json={
-                    "url": url,
-                    "filenameStyle": "pretty",
-                    "downloadMode": "auto",
-                },
-                headers={
-                    "Accept": "application/json",
-                    "Content-Type": "application/json",
-                },
-                timeout=30,
+                COBALT_API,
+                json=payload,
+                headers=COBALT_HEADERS,
             )
             data = resp.json()
     except Exception as e:
-        return DownloadResult(success=False, error=f"Could not connect to download service: {e}")
-
-    options = []
-    status  = data.get("status", "")
-
-    if status == "error":
         return DownloadResult(
             success=False,
-            error="Instagram post is private or could not be accessed.",
+            error=f"Could not connect to download service: {str(e)}",
         )
 
+    status  = data.get("status", "")
+    options = []
+
+    # Error response
+    if status == "error":
+        error_code = ""
+        if isinstance(data.get("error"), dict):
+            error_code = data["error"].get("code", "unknown")
+        else:
+            error_code = str(data.get("error", "unknown"))
+        return DownloadResult(
+            success=False,
+            error=f"Could not process this URL. ({error_code})",
+        )
+
+    # Direct stream/redirect
     if status in ("redirect", "stream", "tunnel"):
         dl_url = data.get("url")
         if dl_url:
             options.append(MediaOption(
-                label="Instagram Media (Best Quality)",
+                label="Download (Best Quality)",
                 url=dl_url,
                 media_type="video",
                 format="mp4",
             ))
 
+    # Multiple options picker
     if status == "picker":
         for i, item in enumerate(data.get("picker", [])):
             item_url = item.get("url", "")
             if item_url:
                 options.append(MediaOption(
-                    label=f"Media {i+1}",
+                    label=f"Option {i + 1}",
                     url=item_url,
                     media_type=item.get("type", "video"),
                     format="mp4",
@@ -273,189 +151,174 @@ async def handle_instagram(detection: DetectionResult, **kwargs) -> DownloadResu
     if not options:
         return DownloadResult(
             success=False,
-            error="Could not extract media. Post may be private or login required.",
+            error="No downloadable media found. The content may be private or unavailable.",
         )
 
-    return DownloadResult(
-        success=True,
-        title="Instagram Post",
-        options=options,
-    )
-
-    # ── Try extracting from JSON-LD ────────────────────────
-    json_ld_match = re.search(r'<script type="application/ld\+json">(.*?)</script>', html, re.DOTALL)
-    if json_ld_match:
-        try:
-            data = json.loads(json_ld_match.group(1))
-            if isinstance(data, list): data = data[0]
-            title = data.get("name", title)
-            # Video
-            if "video" in data:
-                vids = data["video"] if isinstance(data["video"], list) else [data["video"]]
-                for v in vids:
-                    content_url = v.get("contentUrl") or v.get("url")
-                    if content_url:
-                        options.append(MediaOption(
-                            label="Video (HD)",
-                            url=content_url,
-                            media_type="video",
-                            thumbnail=v.get("thumbnailUrl"),
-                        ))
-                        thumbnail = thumbnail or v.get("thumbnailUrl")
-            # Image
-            if "image" in data and not options:
-                imgs = data["image"] if isinstance(data["image"], list) else [data["image"]]
-                for img in imgs:
-                    img_url = img.get("url") if isinstance(img, dict) else img
-                    if img_url:
-                        options.append(MediaOption(
-                            label="Image (Full Size)",
-                            url=img_url,
-                            media_type="image",
-                            format="jpg",
-                        ))
-                        thumbnail = thumbnail or img_url
-        except Exception:
-            pass
-
-    # ── Fallback: parse window.__additionalDataLoaded or shared_data ──
-    if not options:
-        shared_match = re.search(r'window\.__additionalDataLoaded\s*\(\s*[\'"].*?[\'"]\s*,\s*(\{.*?\})\s*\)', html, re.DOTALL)
-        if not shared_match:
-            shared_match = re.search(r'<script[^>]*>window\._sharedData\s*=\s*(\{.*?\});</script>', html, re.DOTALL)
-
-        if shared_match:
-            try:
-                data = json.loads(shared_match.group(1))
-                # Walk the nested structure to find media nodes
-                _extract_ig_nodes(data, options)
-            except Exception:
-                pass
-
-    if not options:
-        # Cannot parse — provide downloader service links
-        shortcode = detection.extra.get("shortcode", "")
-        options.append(MediaOption(
-            label="Download via SnapInsta",
-            url=f"https://snapinsta.app/?url={url}",
-            media_type="video",
-        ))
-
-    return DownloadResult(
-        success=True,
-        title=title,
-        thumbnail=thumbnail,
-        options=options,
-    )
-
-
-def _extract_ig_nodes(data: dict, options: list, depth: int = 0) -> None:
-    """Recursively find media URLs in Instagram JSON blobs."""
-    if depth > 10:
-        return
-    if isinstance(data, dict):
-        # Video
-        if data.get("is_video") and data.get("video_url"):
-            options.append(MediaOption(
-                label="Video",
-                url=data["video_url"],
-                media_type="video",
-                thumbnail=data.get("display_url"),
-            ))
-        # Image
-        elif data.get("display_url") and not data.get("is_video"):
-            options.append(MediaOption(
-                label="Image (Full Size)",
-                url=data["display_url"],
-                media_type="image",
-                format="jpg",
-            ))
-        # Carousel
-        if data.get("edge_sidecar_to_children"):
-            for edge in data["edge_sidecar_to_children"].get("edges", []):
-                _extract_ig_nodes(edge.get("node", {}), options, depth + 1)
-        for v in data.values():
-            if isinstance(v, (dict, list)):
-                _extract_ig_nodes(v, options, depth + 1)
-    elif isinstance(data, list):
-        for item in data:
-            _extract_ig_nodes(item, options, depth + 1)
+    return DownloadResult(success=True, options=options)
 
 
 # ══════════════════════════════════════════════════════════
-#  YT-DLP GENERIC HANDLER (TikTok, Twitter, Facebook, Vimeo)
+#  ORCHESTRATOR
 # ══════════════════════════════════════════════════════════
-async def handle_yt_dlp(detection: DetectionResult, **kwargs) -> DownloadResult:
-    """Use Cobalt API for TikTok, Twitter, Facebook, Vimeo."""
-    url = detection.url
+async def process_url(detection: DetectionResult, quality: str = "best") -> DownloadResult:
+    """Route to the correct handler based on detected platform."""
+    handlers = {
+        Platform.DIRECT:    handle_direct,
+        Platform.YOUTUBE:   handle_youtube,
+        Platform.INSTAGRAM: handle_instagram,
+        Platform.TIKTOK:    handle_tiktok,
+        Platform.TWITTER:   handle_twitter,
+        Platform.FACEBOOK:  handle_facebook,
+        Platform.REDDIT:    handle_reddit,
+        Platform.VIMEO:     handle_vimeo,
+        Platform.PINTEREST: handle_pinterest,
+        Platform.WEBPAGE:   handle_webpage,
+    }
+    handler = handlers.get(detection.platform, handle_webpage)
     try:
-        async with _make_client() as client:
-            resp = await client.post(
-                "https://api.cobalt.tools/",
-                json={
-                    "url": url,
-                    "filenameStyle": "pretty",
-                    "downloadMode": "auto",
-                },
-                headers={
-                    "Accept": "application/json",
-                    "Content-Type": "application/json",
-                },
-                timeout=30,
-            )
-            data = resp.json()
+        result = await handler(detection, quality=quality)
+        result.platform = detection.platform.value
+        return result
     except Exception as e:
-        return DownloadResult(success=False, error=f"Service error: {e}")
-
-    options = []
-    status  = data.get("status", "")
-
-    if status in ("redirect", "stream", "tunnel"):
-        dl_url = data.get("url")
-        if dl_url:
-            options.append(MediaOption(
-                label="Download Video",
-                url=dl_url,
-                media_type="video",
-                format="mp4",
-            ))
-
-    if status == "picker":
-        for i, item in enumerate(data.get("picker", [])):
-            item_url = item.get("url", "")
-            if item_url:
-                options.append(MediaOption(
-                    label=f"Option {i+1}",
-                    url=item_url,
-                    media_type="video",
-                    format="mp4",
-                    thumbnail=item.get("thumb"),
-                ))
-
-    if not options:
+        logger.error("download_handler_error",
+                     platform=detection.platform, error=str(e))
         return DownloadResult(
             success=False,
-            error="Could not download. This content may be private or region locked.",
+            error=f"An error occurred: {str(e)}",
+            platform=detection.platform.value,
         )
+
+
+# ══════════════════════════════════════════════════════════
+#  DIRECT FILE HANDLER
+# ══════════════════════════════════════════════════════════
+async def handle_direct(detection: DetectionResult, **kwargs) -> DownloadResult:
+    """Handle direct media file URLs (.jpg, .mp4, .pdf, etc.)."""
+    url = detection.url
+
+    try:
+        async with _make_client() as client:
+            head = await client.head(url)
+            content_type   = head.headers.get("content-type", "application/octet-stream")
+            content_length = head.headers.get("content-length")
+            file_size = int(content_length) if content_length else None
+    except Exception:
+        content_type = "application/octet-stream"
+        file_size    = None
+
+    if file_size and file_size > settings.max_file_size_bytes:
+        return DownloadResult(
+            success=False,
+            error=f"File too large. Max: {settings.max_file_size_mb} MB",
+        )
+
+    path  = urlparse(url).path
+    name  = sanitize_filename(path.split("/")[-1] or "download")
+    ext   = Path(name).suffix or ".bin"
 
     return DownloadResult(
         success=True,
-        title="Video",
-        options=options,
+        title=name,
+        options=[
+            MediaOption(
+                label=f"Download {ext.upper().lstrip('.')} — {name}",
+                url=url,
+                media_type=detection.media_type.value,
+                mime_type=content_type,
+                file_size=file_size,
+                format=ext.lstrip("."),
+            )
+        ],
     )
 
 
+# ══════════════════════════════════════════════════════════
+#  YOUTUBE
+# ══════════════════════════════════════════════════════════
+async def handle_youtube(detection: DetectionResult, quality: str = "best", **kwargs) -> DownloadResult:
+    """Use Cobalt API for YouTube downloads."""
+    result = await _cobalt_download(detection.url, mode="auto")
+    if result.success:
+        result.title = result.title or "YouTube Video"
+        # Add audio-only option
+        audio_result = await _cobalt_download(detection.url, mode="audio")
+        if audio_result.success and audio_result.options:
+            audio_opt        = audio_result.options[0]
+            audio_opt.label  = "Audio Only (MP3)"
+            audio_opt.format = "mp3"
+            audio_opt.media_type = "audio"
+            result.options.append(audio_opt)
+    return result
+
 
 # ══════════════════════════════════════════════════════════
-#  REDDIT HANDLER
+#  INSTAGRAM
+# ══════════════════════════════════════════════════════════
+async def handle_instagram(detection: DetectionResult, **kwargs) -> DownloadResult:
+    """Use Cobalt API for Instagram downloads."""
+    result = await _cobalt_download(detection.url)
+    if result.success:
+        result.title = result.title or "Instagram Post"
+    return result
+
+
+# ══════════════════════════════════════════════════════════
+#  TIKTOK
+# ══════════════════════════════════════════════════════════
+async def handle_tiktok(detection: DetectionResult, **kwargs) -> DownloadResult:
+    """Use Cobalt API for TikTok downloads."""
+    result = await _cobalt_download(detection.url)
+    if result.success:
+        result.title = result.title or "TikTok Video"
+    return result
+
+
+# ══════════════════════════════════════════════════════════
+#  TWITTER
+# ══════════════════════════════════════════════════════════
+async def handle_twitter(detection: DetectionResult, **kwargs) -> DownloadResult:
+    """Use Cobalt API for Twitter/X downloads."""
+    result = await _cobalt_download(detection.url)
+    if result.success:
+        result.title = result.title or "Twitter Video"
+    return result
+
+
+# ══════════════════════════════════════════════════════════
+#  FACEBOOK
+# ══════════════════════════════════════════════════════════
+async def handle_facebook(detection: DetectionResult, **kwargs) -> DownloadResult:
+    """Use Cobalt API for Facebook downloads."""
+    result = await _cobalt_download(detection.url)
+    if result.success:
+        result.title = result.title or "Facebook Video"
+    return result
+
+
+# ══════════════════════════════════════════════════════════
+#  VIMEO
+# ══════════════════════════════════════════════════════════
+async def handle_vimeo(detection: DetectionResult, **kwargs) -> DownloadResult:
+    """Use Cobalt API for Vimeo downloads."""
+    result = await _cobalt_download(detection.url)
+    if result.success:
+        result.title = result.title or "Vimeo Video"
+    return result
+
+
+# ══════════════════════════════════════════════════════════
+#  REDDIT
 # ══════════════════════════════════════════════════════════
 async def handle_reddit(detection: DetectionResult, **kwargs) -> DownloadResult:
-    url = detection.url
+    url      = detection.url
     json_url = url.rstrip("/") + ".json"
 
     async with _make_client() as client:
         try:
-            resp = await client.get(json_url, headers={**BROWSER_HEADERS, "Accept": "application/json"})
+            resp = await client.get(
+                json_url,
+                headers={**BROWSER_HEADERS, "Accept": "application/json"},
+            )
             data = resp.json()
         except Exception as e:
             return DownloadResult(success=False, error=f"Reddit API error: {e}")
@@ -464,12 +327,11 @@ async def handle_reddit(detection: DetectionResult, **kwargs) -> DownloadResult:
     title = "Reddit Post"
 
     try:
-        post = data[0]["data"]["children"][0]["data"]
+        post  = data[0]["data"]["children"][0]["data"]
         title = post.get("title", title)
 
-        # Direct video (v.redd.it)
         if post.get("is_video"):
-            media = post.get("media", {}).get("reddit_video", {})
+            media     = post.get("media", {}).get("reddit_video", {})
             video_url = media.get("fallback_url") or media.get("hls_url")
             if video_url:
                 options.append(MediaOption(
@@ -480,7 +342,6 @@ async def handle_reddit(detection: DetectionResult, **kwargs) -> DownloadResult:
                     height=media.get("height"),
                 ))
 
-        # Direct image
         if post.get("url", "").endswith((".jpg", ".jpeg", ".png", ".gif", ".webp")):
             options.append(MediaOption(
                 label="Image",
@@ -489,15 +350,14 @@ async def handle_reddit(detection: DetectionResult, **kwargs) -> DownloadResult:
                 format=post["url"].split(".")[-1],
             ))
 
-        # Gallery
         if post.get("is_gallery"):
             media_meta = post.get("media_metadata", {})
             for item in media_meta.values():
-                src = item.get("s", {})
+                src     = item.get("s", {})
                 img_url = src.get("u") or src.get("gif")
                 if img_url:
                     options.append(MediaOption(
-                        label=f"Image {src.get('x', '')}x{src.get('y', '')}",
+                        label=f"Image {src.get('x','')}x{src.get('y','')}",
                         url=img_url.replace("&amp;", "&"),
                         media_type="image",
                         width=src.get("x"),
@@ -510,7 +370,7 @@ async def handle_reddit(detection: DetectionResult, **kwargs) -> DownloadResult:
 
 
 # ══════════════════════════════════════════════════════════
-#  PINTEREST HANDLER
+#  PINTEREST
 # ══════════════════════════════════════════════════════════
 async def handle_pinterest(detection: DetectionResult, **kwargs) -> DownloadResult:
     url = detection.url
@@ -521,52 +381,55 @@ async def handle_pinterest(detection: DetectionResult, **kwargs) -> DownloadResu
         except Exception as e:
             return DownloadResult(success=False, error=str(e))
 
-    # Pinterest embeds image URL in og:image
-    og_match = re.search(r'<meta property="og:image"\s+content="([^"]+)"', html)
+    og_match    = re.search(r'<meta property="og:image"\s+content="([^"]+)"', html)
     title_match = re.search(r'<meta property="og:title"\s+content="([^"]+)"', html)
 
     if og_match:
-        img_url = og_match.group(1).replace("236x", "originals").replace("/236x/", "/originals/")
+        img_url = og_match.group(1).replace("236x", "originals")
         return DownloadResult(
             success=True,
             title=title_match.group(1) if title_match else "Pinterest Pin",
             thumbnail=og_match.group(1),
-            options=[MediaOption(label="Image (Original)", url=img_url, media_type="image", format="jpg")],
+            options=[MediaOption(
+                label="Image (Original)",
+                url=img_url,
+                media_type="image",
+                format="jpg",
+            )],
         )
 
-    return DownloadResult(success=False, error="Could not extract image from Pinterest pin.")
+    return DownloadResult(success=False, error="Could not extract image from Pinterest.")
 
 
 # ══════════════════════════════════════════════════════════
-#  GENERIC WEBPAGE HANDLER
+#  GENERIC WEBPAGE
 # ══════════════════════════════════════════════════════════
 async def handle_webpage(detection: DetectionResult, **kwargs) -> DownloadResult:
-    """
-    Scrape any webpage for all image/video/audio sources.
-    Returns all found media with thumbnails.
-    """
+    """Scrape any webpage for all image/video/audio sources."""
     from bs4 import BeautifulSoup
 
     url = detection.url
     async with _make_client() as client:
         try:
-            resp = await client.get(url)
-            html = resp.text
+            resp     = await client.get(url)
+            html     = resp.text
             base_url = str(resp.url)
         except Exception as e:
             return DownloadResult(success=False, error=f"Could not fetch page: {e}")
 
-    soup   = BeautifulSoup(html, "lxml")
+    soup    = BeautifulSoup(html, "lxml")
     options: List[MediaOption] = []
     seen:   set = set()
 
-    # ── Images ────────────────────────────────────────────
     for img in soup.find_all("img", src=True):
         src = urljoin(base_url, img["src"])
-        if src in seen or not src.startswith("http"): continue
+        if src in seen or not src.startswith("http"):
+            continue
         seen.add(src)
-        try: validate_url(src)
-        except Exception: continue
+        try:
+            validate_url(src)
+        except Exception:
+            continue
         options.append(MediaOption(
             label=f"Image — {img.get('alt', src.split('/')[-1])[:50]}",
             url=src,
@@ -575,14 +438,16 @@ async def handle_webpage(detection: DetectionResult, **kwargs) -> DownloadResult
             height=int(img.get("height", 0)) or None,
         ))
 
-    # ── Videos ────────────────────────────────────────────
     for video in soup.find_all("video"):
         for source in video.find_all("source", src=True):
             src = urljoin(base_url, source["src"])
-            if src in seen: continue
+            if src in seen:
+                continue
             seen.add(src)
-            try: validate_url(src)
-            except Exception: continue
+            try:
+                validate_url(src)
+            except Exception:
+                continue
             options.append(MediaOption(
                 label=f"Video — {src.split('/')[-1][:50]}",
                 url=src,
@@ -590,29 +455,17 @@ async def handle_webpage(detection: DetectionResult, **kwargs) -> DownloadResult
                 mime_type=source.get("type"),
             ))
 
-    # ── Audio ─────────────────────────────────────────────
-    for audio in soup.find_all("audio"):
-        for source in audio.find_all("source", src=True):
-            src = urljoin(base_url, source["src"])
-            if src in seen: continue
-            seen.add(src)
-            options.append(MediaOption(
-                label=f"Audio — {src.split('/')[-1][:50]}",
-                url=src,
-                media_type="audio",
-                mime_type=source.get("type"),
-            ))
-
-    # OG image
-    og = soup.find("meta", property="og:image")
+    og        = soup.find("meta", property="og:image")
     thumbnail = og["content"] if og and og.get("content") else None
     title_tag = soup.find("title")
-    title = title_tag.get_text().strip() if title_tag else "Webpage Media"
+    title     = title_tag.get_text().strip() if title_tag else "Webpage Media"
 
     if not options:
-        return DownloadResult(success=False, error="No downloadable media found on this page.")
+        return DownloadResult(
+            success=False,
+            error="No downloadable media found on this page.",
+        )
 
-    # Limit to 50 items
     return DownloadResult(
         success=True,
         title=title,
