@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase
+
 from app.core.config import settings
 
 engine = create_async_engine(
@@ -34,7 +35,7 @@ class Base(DeclarativeBase):
 
 
 async def get_db():
-    """FastAPI dependency — yields DB session, closes on exit."""
+    """FastAPI dependency — yields DB session."""
     async with AsyncSessionLocal() as session:
         try:
             yield session
