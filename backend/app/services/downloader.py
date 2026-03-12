@@ -150,117 +150,136 @@ async def handle_direct(detection: DetectionResult, **kwargs) -> DownloadResult:
 #  YOUTUBE HANDLER (via yt-dlp)
 # ══════════════════════════════════════════════════════════
 async def handle_youtube(detection: DetectionResult, quality: str = "best", **kwargs) -> DownloadResult:
-    """
-    Use yt-dlp in a subprocess to extract stream info without downloading.
-    The actual download/streaming is handled by the streaming endpoint.
-    """
-    import yt_dlp
-
+    """Use Cobalt API for YouTube downloads."""
     url = detection.url
-    ydl_opts = {
-        "quiet": True,
-        "no_warnings": True,
-        "extract_flat": False,
-        "skip_download": True,
-    }
-
-    loop = asyncio.get_event_loop()
-
-    def _extract():
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            return ydl.extract_info(url, download=False)
-
     try:
-        info = await loop.run_in_executor(None, _extract)
+        async with _make_client() as client:
+            resp = await client.post(
+                "https://api.cobalt.tools/",
+                json={
+                    "url": url,
+                    "videoQuality": "1080",
+                    "filenameStyle": "pretty",
+                    "downloadMode": "auto",
+                },
+                headers={
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                },
+                timeout=30,
+            )
+            data = resp.json()
     except Exception as e:
-        return DownloadResult(success=False, error=f"yt-dlp extraction failed: {e}")
+        return DownloadResult(success=False, error=f"Could not connect to download service: {e}")
 
-    if not info:
-        return DownloadResult(success=False, error="Could not extract video information.")
+    options = []
+    status  = data.get("status", "")
 
-    title     = info.get("title", "YouTube Video")
-    thumbnail = info.get("thumbnail")
-    formats   = info.get("formats", [])
+    if status == "error":
+        code = data.get("error", {}).get("code", "unknown")
+        return DownloadResult(success=False, error=f"Download service error: {code}")
 
-    options: List[MediaOption] = []
-
-    # ── Video+Audio combined streams ──
-    combined = [
-        f for f in formats
-        if f.get("vcodec") != "none" and f.get("acodec") != "none"
-        and f.get("ext") in ("mp4", "webm")
-    ]
-    combined.sort(key=lambda f: (f.get("height") or 0), reverse=True)
-
-    seen_heights = set()
-    for fmt in combined:
-        h = fmt.get("height")
-        if h and h not in seen_heights:
-            seen_heights.add(h)
+    if status in ("redirect", "stream", "tunnel"):
+        dl_url = data.get("url")
+        if dl_url:
             options.append(MediaOption(
-                label=f"{h}p {fmt.get('ext','mp4').upper()}",
-                url=fmt["url"],
+                label="Video — Best Quality (MP4)",
+                url=dl_url,
                 media_type="video",
-                mime_type=fmt.get("ext"),
-                file_size=fmt.get("filesize") or fmt.get("filesize_approx"),
-                width=fmt.get("width"),
-                height=h,
-                format=fmt.get("ext", "mp4"),
-                thumbnail=thumbnail,
+                format="mp4",
             ))
 
-    # ── Audio-only (MP3 extraction) ──
-    audio_formats = [
-        f for f in formats
-        if f.get("vcodec") == "none" and f.get("acodec") != "none"
-    ]
-    if audio_formats:
-        best_audio = max(audio_formats, key=lambda f: f.get("abr") or 0)
-        options.append(MediaOption(
-            label="MP3 Audio",
-            url=best_audio["url"],
-            media_type="audio",
-            mime_type="audio/mpeg",
-            file_size=best_audio.get("filesize"),
-            format="mp3",
-            thumbnail=thumbnail,
-        ))
+    if status == "picker":
+        for i, item in enumerate(data.get("picker", [])):
+            item_url = item.get("url", "")
+            if item_url:
+                options.append(MediaOption(
+                    label=f"Video Option {i+1}",
+                    url=item_url,
+                    media_type="video",
+                    format="mp4",
+                    thumbnail=item.get("thumb"),
+                ))
+
+    if not options:
+        return DownloadResult(
+            success=False,
+            error="YouTube blocked this request. Try again in a few seconds.",
+        )
 
     return DownloadResult(
         success=True,
-        title=title,
-        thumbnail=thumbnail,
-        description=info.get("description", "")[:300],
+        title="YouTube Video",
         options=options,
     )
-
 
 # ══════════════════════════════════════════════════════════
 #  INSTAGRAM HANDLER
 # ══════════════════════════════════════════════════════════
 async def handle_instagram(detection: DetectionResult, **kwargs) -> DownloadResult:
-    """
-    Fetch Instagram post metadata by parsing the page's JSON-LD / shared_data.
-    Works for public posts, reels, and carousels.
-    """
+    """Use Cobalt API for Instagram downloads."""
     url = detection.url
-    # Ensure we use the /media/?size=l Instagram CDN format
-    if not url.endswith("/"):
-        url += "/"
+    try:
+        async with _make_client() as client:
+            resp = await client.post(
+                "https://api.cobalt.tools/",
+                json={
+                    "url": url,
+                    "filenameStyle": "pretty",
+                    "downloadMode": "auto",
+                },
+                headers={
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                },
+                timeout=30,
+            )
+            data = resp.json()
+    except Exception as e:
+        return DownloadResult(success=False, error=f"Could not connect to download service: {e}")
 
-    async with _make_client() as client:
-        try:
-            resp = await client.get(url, headers={
-                **BROWSER_HEADERS,
-                "Accept": "text/html,application/xhtml+xml,*/*",
-            })
-            html = resp.text
-        except Exception as e:
-            return DownloadResult(success=False, error=f"Could not fetch Instagram page: {e}")
+    options = []
+    status  = data.get("status", "")
 
-    options: List[MediaOption] = []
-    title    = "Instagram Post"
-    thumbnail = None
+    if status == "error":
+        return DownloadResult(
+            success=False,
+            error="Instagram post is private or could not be accessed.",
+        )
+
+    if status in ("redirect", "stream", "tunnel"):
+        dl_url = data.get("url")
+        if dl_url:
+            options.append(MediaOption(
+                label="Instagram Media (Best Quality)",
+                url=dl_url,
+                media_type="video",
+                format="mp4",
+            ))
+
+    if status == "picker":
+        for i, item in enumerate(data.get("picker", [])):
+            item_url = item.get("url", "")
+            if item_url:
+                options.append(MediaOption(
+                    label=f"Media {i+1}",
+                    url=item_url,
+                    media_type=item.get("type", "video"),
+                    format="mp4",
+                    thumbnail=item.get("thumb"),
+                ))
+
+    if not options:
+        return DownloadResult(
+            success=False,
+            error="Could not extract media. Post may be private or login required.",
+        )
+
+    return DownloadResult(
+        success=True,
+        title="Instagram Post",
+        options=options,
+    )
 
     # ── Try extracting from JSON-LD ────────────────────────
     json_ld_match = re.search(r'<script type="application/ld\+json">(.*?)</script>', html, re.DOTALL)
