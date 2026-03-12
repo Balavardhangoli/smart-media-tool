@@ -154,20 +154,21 @@ async def handle_youtube(detection: DetectionResult, quality: str = "best", **kw
     url = detection.url
     try:
         async with _make_client() as client:
-            resp = await client.post(
-                "https://api.cobalt.tools/",
-                json={
-                    "url": url,
-                    "videoQuality": "1080",
-                    "filenameStyle": "pretty",
-                    "downloadMode": "auto",
-                },
-                headers={
-                    "Accept": "application/json",
-                    "Content-Type": "application/json",
-                },
-                timeout=30,
-            )
+       resp = await client.post(
+    "https://api.cobalt.tools/",
+    json={
+        "url": url,
+        "videoQuality": "1080",
+        "filenameStyle": "pretty",
+        "downloadMode": "auto",
+    },
+    headers={
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0",
+    },
+    timeout=30,
+)
             data = resp.json()
     except Exception as e:
         return DownloadResult(success=False, error=f"Could not connect to download service: {e}")
