@@ -1,225 +1,215 @@
 """
 api/routes/download.py
-Download API endpoints:
-  POST /analyze  — detect platform, return media options
-  POST /fetch    — stream a file to the client
-  POST /bulk     — analyze multiple URLs
+Download routes: analyze, fetch, bulk.
 """
 import asyncio
-import mimetypes
-import urllib.parse
-from typing import Optional, AsyncIterator
+from typing import Optional
 
-import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.db.session import get_db
-from app.db.models import DownloadHistory, AuditLog
+from app.db.models import DownloadHistory
 from app.schemas.download import (
-    AnalyzeRequest, AnalyzeResponse, BulkAnalyzeRequest,
-    BulkAnalyzeResponse, FetchRequest, MediaOptionSchema,
+    AnalyzeRequest,
+    AnalyzeResponse,
+    BulkAnalyzeRequest,
+    BulkAnalyzeResponse,
+    MediaOptionSchema,
 )
 from app.services.cache import cache_get, cache_set, make_cache_key
 from app.services.detector import detect_platform
-from app.services.downloader import process_url, DownloadResult
+from app.services.downloader import process_url
 from app.utils.ssrf_guard import validate_url, SSRFError
-from app.utils.file_utils import sanitize_filename, format_file_size
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/download", tags=["download"])
 
-BROWSER_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-}
-
 
 def _client_ip(request: Request) -> str:
-    xff = request.headers.get("X-Forwarded-For")
-    return xff.split(",")[0].strip() if xff else request.client.host
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    if request.client:
+        return request.client.host
+    return "unknown"
 
 
-async def _log_download(db: AsyncSession, url: str, platform: str,
-                         media_type: str, ip: str, status: str,
-                         user_id=None, error: Optional[str] = None) -> None:
-    entry = DownloadHistory(
-        user_id=user_id, source_url=url, media_type=media_type,
-        platform=platform, status=status, error_msg=error, ip_address=ip,
-    )
-    db.add(entry)
-    await db.commit()
-
-
-# ──────────────────────────────────────────────────────────
-#  ANALYZE ENDPOINT
-# ──────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════
+#  ANALYZE
+# ══════════════════════════════════════════════════════════
 @router.post("/analyze", response_model=AnalyzeResponse)
-async def analyze_url(
-    body:    AnalyzeRequest,
+async def analyze(
+    body: AnalyzeRequest,
     request: Request,
-    db:      AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    """
-    Analyze a URL and return available media options.
-    Results are cached in Redis for CACHE_TTL_SECONDS.
-    """
-    url     = body.url
-    quality = body.quality or "best"
-    ip      = _client_ip(request)
+    url = body.url.strip()
+    ip  = _client_ip(request)
 
-    # ── Cache check ────────────────────────────────────────
-    cache_key = make_cache_key("analyze", f"{url}:{quality}")
+    # Validate URL
+    try:
+        validate_url(url)
+    except SSRFError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Check cache
+    cache_key = make_cache_key("analyze", url)
     cached    = await cache_get(cache_key)
     if cached:
-        logger.info("cache_hit_analyze", url=url, ip=ip)
         return AnalyzeResponse(**cached)
 
-    # ── Detect & process ───────────────────────────────────
-    logger.info("analyze_start", url=url, ip=ip)
+    # Detect platform
     detection = detect_platform(url)
-    result: DownloadResult = await process_url(detection, quality=quality)
+
+    # Process URL
+    result = await process_url(detection, quality=body.quality or "best")
+
+    if not result.success:
+        raise HTTPException(
+            status_code=422,
+            detail=result.error or "Could not process this URL.",
+        )
+
+    # Build response
+    options = [
+        MediaOptionSchema(
+            label=opt.label,
+            url=opt.url,
+            media_type=opt.media_type,
+            mime_type=opt.mime_type,
+            file_size=opt.file_size,
+            width=opt.width,
+            height=opt.height,
+            format=opt.format,
+            thumbnail=opt.thumbnail,
+        )
+        for opt in result.options
+    ]
 
     response = AnalyzeResponse(
-        success=result.success,
+        success=True,
         url=url,
-        platform=result.platform,
+        platform=detection.platform.value,
         media_type=detection.media_type.value,
         title=result.title,
         thumbnail=result.thumbnail,
         description=result.description,
-        options=[
-            MediaOptionSchema(
-                label=o.label, url=o.url, media_type=o.media_type,
-                mime_type=o.mime_type, file_size=o.file_size,
-                width=o.width, height=o.height, format=o.format,
-                thumbnail=o.thumbnail,
-            )
-            for o in result.options
-        ],
-        error=result.error,
+        options=options,
     )
 
-    # ── Cache result ───────────────────────────────────────
-    if result.success:
-        await cache_set(cache_key, response.model_dump())
+    # Cache result
+    await cache_set(cache_key, response.dict(), ttl=300)
 
-    # ── Log to DB (non-blocking) ───────────────────────────
-  try:
-    entry = DownloadHistory(
-        source_url=url,
-        media_type=detection.media_type.value,
-        platform=result.platform or "unknown",
-        status="completed" if result.success else "failed",
-        error_msg=result.error,
-        ip_address=ip,
-    )
-    db.add(entry)
-    await db.commit()
-except Exception:
-    pass
+    # Log to DB
+    try:
+        entry = DownloadHistory(
+            source_url=url,
+            media_type=detection.media_type.value,
+            platform=detection.platform.value,
+            status="completed",
+            ip_address=ip,
+        )
+        db.add(entry)
+        await db.commit()
+    except Exception as e:
+        logger.error(f"db_log_error: {e}")
+        await db.rollback()
 
     return response
 
 
-# ──────────────────────────────────────────────────────────
-#  STREAM/FETCH ENDPOINT
-# ──────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════
+#  FETCH (streaming download)
+# ══════════════════════════════════════════════════════════
 @router.post("/fetch")
-async def fetch_and_stream(
-    body:    FetchRequest,
+async def fetch(
+    body: AnalyzeRequest,
     request: Request,
-    db:      AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    """
-    Stream a media file directly to the client.
-    Validates URL, applies size limit, streams with proper headers.
-    """
+    url = body.url.strip()
+
     try:
-        url = validate_url(body.url)
+        validate_url(url)
     except SSRFError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    filename = sanitize_filename(body.filename or url.split("/")[-1] or "download")
+    import httpx
+    from app.utils.file_utils import sanitize_filename
 
-    async def stream_generator() -> AsyncIterator[bytes]:
-        total = 0
+    filename = sanitize_filename(url.split("/")[-1].split("?")[0] or "download")
+
+    async def stream_file():
         async with httpx.AsyncClient(
-            headers=BROWSER_HEADERS,
-            timeout=httpx.Timeout(settings.http_timeout_seconds),
+            timeout=httpx.Timeout(60),
             follow_redirects=True,
         ) as client:
-            async with client.stream("GET", url) as resp:
-                resp.raise_for_status()
-                async for chunk in resp.aiter_bytes(chunk_size=65536):
-                    total += len(chunk)
-                    if total > settings.max_file_size_bytes:
-                        raise HTTPException(413, detail="File exceeds size limit.")
+            async with client.stream("GET", url, headers={
+                "User-Agent": "Mozilla/5.0",
+            }) as response:
+                async for chunk in response.aiter_bytes(chunk_size=8192):
                     yield chunk
 
-    # Get content-type for response headers
-    media_type = "application/octet-stream"
-    try:
-        async with httpx.AsyncClient(headers=BROWSER_HEADERS, timeout=10) as client:
-            head = await client.head(url, follow_redirects=True)
-            ct   = head.headers.get("content-type", "")
-            if ct and "/" in ct:
-                media_type = ct.split(";")[0].strip()
-    except Exception:
-        pass
-
     return StreamingResponse(
-        stream_generator(),
-        media_type=media_type,
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
-            "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "no-store",
-        },
+        stream_file(),
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
-# ──────────────────────────────────────────────────────────
-#  BULK ANALYZE ENDPOINT
-# ──────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════
+#  BULK ANALYZE
+# ══════════════════════════════════════════════════════════
 @router.post("/bulk", response_model=BulkAnalyzeResponse)
 async def bulk_analyze(
-    body:    BulkAnalyzeRequest,
+    body: BulkAnalyzeRequest,
     request: Request,
-    db:      AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
-    """
-    Analyze multiple URLs concurrently. Returns results for all.
-    Max 20 URLs per request.
-    """
-    ip = _client_ip(request)
-
-    async def _analyze_one(url: str) -> AnalyzeResponse:
-        try:
-            validated = validate_url(url)
-        except SSRFError as e:
-            return AnalyzeResponse(success=False, url=url, error=str(e))
-        detection = detect_platform(validated)
-        result    = await process_url(detection, quality=body.quality or "best")
-        return AnalyzeResponse(
-            success=result.success, url=url,
-            platform=result.platform, media_type=detection.media_type.value,
-            title=result.title, thumbnail=result.thumbnail,
-            options=[
-                MediaOptionSchema(**{k: getattr(o, k) for k in MediaOptionSchema.model_fields})
-                for o in result.options
-            ],
-            error=result.error,
+    if len(body.urls) > 20:
+        raise HTTPException(
+            status_code=400,
+            detail="Maximum 20 URLs per bulk request.",
         )
 
-    results = await asyncio.gather(*[_analyze_one(u) for u in body.urls], return_exceptions=False)
-    success_count = sum(1 for r in results if r.success)
+    results = []
+    for url in body.urls:
+        try:
+            validate_url(url.strip())
+            detection = detect_platform(url.strip())
+            result    = await process_url(detection)
+            results.append({
+                "url":      url,
+                "success":  result.success,
+                "title":    result.title,
+                "platform": detection.platform.value,
+                "options":  [
+                    {
+                        "label":      o.label,
+                        "url":        o.url,
+                        "media_type": o.media_type,
+                        "format":     o.format,
+                    }
+                    for o in result.options
+                ],
+                "error": result.error,
+            })
+        except Exception as e:
+            results.append({
+                "url":     url,
+                "success": False,
+                "error":   str(e),
+                "options": [],
+            })
+
+    success_count = sum(1 for r in results if r["success"])
 
     return BulkAnalyzeResponse(
-        results=list(results),
         total=len(results),
         success_count=success_count,
-        fail_count=len(results) - success_count,
+        results=results,
     )
