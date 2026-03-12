@@ -385,50 +385,66 @@ def _extract_ig_nodes(data: dict, options: list, depth: int = 0) -> None:
 #  YT-DLP GENERIC HANDLER (TikTok, Twitter, Facebook, Vimeo)
 # ══════════════════════════════════════════════════════════
 async def handle_yt_dlp(detection: DetectionResult, **kwargs) -> DownloadResult:
-    """Use yt-dlp for platforms it supports natively."""
-    import yt_dlp
-
+    """Use Cobalt API for TikTok, Twitter, Facebook, Vimeo."""
     url = detection.url
-    ydl_opts = {"quiet": True, "no_warnings": True, "skip_download": True}
-    loop = asyncio.get_event_loop()
-
-    def _extract():
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            return ydl.extract_info(url, download=False)
-
     try:
-        info = await loop.run_in_executor(None, _extract)
+        async with _make_client() as client:
+            resp = await client.post(
+                "https://api.cobalt.tools/",
+                json={
+                    "url": url,
+                    "filenameStyle": "pretty",
+                    "downloadMode": "auto",
+                },
+                headers={
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                },
+                timeout=30,
+            )
+            data = resp.json()
     except Exception as e:
-        return DownloadResult(success=False, error=f"Could not extract media info: {e}")
+        return DownloadResult(success=False, error=f"Service error: {e}")
 
-    if not info:
-        return DownloadResult(success=False, error="No media found at this URL.")
+    options = []
+    status  = data.get("status", "")
 
-    title     = info.get("title") or "Media"
-    thumbnail = info.get("thumbnail")
-    formats   = info.get("formats", [])
+    if status in ("redirect", "stream", "tunnel"):
+        dl_url = data.get("url")
+        if dl_url:
+            options.append(MediaOption(
+                label="Download Video",
+                url=dl_url,
+                media_type="video",
+                format="mp4",
+            ))
 
-    options: List[MediaOption] = []
-    for fmt in sorted(formats, key=lambda f: f.get("height") or 0, reverse=True):
-        if not fmt.get("url"):
-            continue
-        h = fmt.get("height")
-        label = f"{h}p" if h else fmt.get("format_note", fmt.get("ext", "Media"))
-        options.append(MediaOption(
-            label=label,
-            url=fmt["url"],
-            media_type="video",
-            mime_type=fmt.get("ext"),
-            file_size=fmt.get("filesize"),
-            width=fmt.get("width"),
-            height=h,
-            format=fmt.get("ext", "mp4"),
-            thumbnail=thumbnail,
-        ))
-        if len(options) >= 5:
-            break
+    if status == "picker":
+        for i, item in enumerate(data.get("picker", [])):
+            item_url = item.get("url", "")
+            if item_url:
+                options.append(MediaOption(
+                    label=f"Option {i+1}",
+                    url=item_url,
+                    media_type="video",
+                    format="mp4",
+                    thumbnail=item.get("thumb"),
+                ))
 
-    return DownloadResult(success=True, title=title, thumbnail=thumbnail, options=options)
+    if not options:
+        return DownloadResult(
+            success=False,
+            error="Could not download. This content may be private or region locked.",
+        )
+
+    return DownloadResult(
+        success=True,
+        title="Video",
+        options=options,
+    )
+```
+
+---
 
 
 # ══════════════════════════════════════════════════════════
