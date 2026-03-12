@@ -442,9 +442,7 @@ async def handle_yt_dlp(detection: DetectionResult, **kwargs) -> DownloadResult:
         title="Video",
         options=options,
     )
-```
 
----
 
 
 # ══════════════════════════════════════════════════════════
