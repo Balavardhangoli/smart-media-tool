@@ -932,24 +932,26 @@ function renderBulkResults(data) {
 // ══════════════════════════════════════════════════════════
 async function streamDownload(url, label) {
   try {
-    const ext = label.toLowerCase().includes('mp3') || 
-                label.toLowerCase().includes('audio') ? 'mp3' : 'mp4';
-    const filename = (label || 'video').replace(/[^\w\s.-]/g, '_') + '.' + ext;
-
-    // Stream through our backend to force download
+    // Stream through backend — forces correct filename + format
     const res = await fetch(`${API}/download/fetch`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
       },
-      body: JSON.stringify({ url, filename }),
+      body: JSON.stringify({ url }),
     });
 
     if (!res.ok) {
-      // Fallback to direct open
       window.open(url, '_blank');
       return;
+    }
+
+    // Get filename from Content-Disposition header
+    const disposition = res.headers.get('content-disposition') || '';
+    let filename = 'download';
+    if (disposition.includes('filename=')) {
+      filename = disposition.split('filename=')[1].replace(/['"]/g, '').trim();
     }
 
     const blob = await res.blob();
@@ -961,7 +963,7 @@ async function streamDownload(url, label) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(blobUrl);
-    showStatus('success', `✅ Download started: <strong>${label}</strong>`);
+    showStatus('success', `✅ Download started: <strong>${filename}</strong>`);
   } catch(e) {
     window.open(url, '_blank');
   }
