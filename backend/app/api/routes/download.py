@@ -153,7 +153,9 @@ async def fetch(
             follow_redirects=True,
         ) as client:
             async with client.stream("GET", url, headers={
-                "User-Agent": "Mozilla/5.0",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Referer": "https://www.instagram.com/",
+                "Accept": "*/*",
             }) as response:
                 async for chunk in response.aiter_bytes(chunk_size=8192):
                     yield chunk
