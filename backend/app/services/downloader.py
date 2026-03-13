@@ -1,10 +1,9 @@
 """
 services/downloader.py
-Main download orchestrator. Routes requests to the correct handler
-based on the DetectionResult from detector.py.
+Main download orchestrator using RapidAPI Snap Video.
 """
 import asyncio
-import json
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -16,7 +15,7 @@ import httpx
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.services.detector import DetectionResult, Platform, MediaType
-from app.utils.file_utils import sanitize_filename, generate_temp_path, extension_from_mime
+from app.utils.file_utils import sanitize_filename, extension_from_mime
 from app.utils.ssrf_guard import validate_url
 
 logger = get_logger(__name__)
@@ -32,21 +31,10 @@ BROWSER_HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
 
-# ── Cobalt API headers ─────────────────────────────────────
-COBALT_HEADERS = {
-    "Accept": "application/json",
-    "Content-Type": "application/json",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-}
-
-# Multiple public Cobalt instances - tries each until one works
-COBALT_INSTANCES = [
-    "https://cobalt.urdimensions.com/",
-    "https://cobalt.flxg.de/",
-    "https://cobalt-api.kkow.ru/",
-    "https://cobalt.drgns.space/",
-    "https://api.cobalt.tools/",
-]
+# ── RapidAPI Config ────────────────────────────────────────
+RAPIDAPI_KEY  = os.getenv("RAPIDAPI_KEY", "")
+RAPIDAPI_HOST = os.getenv("RAPIDAPI_HOST", "snap-video3.p.rapidapi.com")
+RAPIDAPI_URL  = f"https://{RAPIDAPI_HOST}/download"
 
 
 @dataclass
@@ -78,96 +66,122 @@ def _make_client() -> httpx.AsyncClient:
     return httpx.AsyncClient(
         headers=BROWSER_HEADERS,
         timeout=httpx.Timeout(settings.http_timeout_seconds),
-        max_redirects=settings.max_redirects,
         follow_redirects=True,
         verify=True,
     )
 
 
 # ══════════════════════════════════════════════════════════
-#  COBALT API HELPER
+#  RAPIDAPI SNAP VIDEO HELPER
 # ══════════════════════════════════════════════════════════
-async def _cobalt_download(url: str, mode: str = "auto") -> DownloadResult:
-    """
-    Call Cobalt API instances to get download URL.
-    Tries multiple public instances until one works.
-    Supports YouTube, Instagram, TikTok, Twitter, Facebook, Vimeo.
-    """
-    payload = {
-        "url": url,
-        "videoQuality": "1080",
-        "filenameStyle": "pretty",
-        "downloadMode": mode,
+async def _rapidapi_download(url: str) -> DownloadResult:
+    """Use RapidAPI Snap Video to download from YouTube, Instagram, TikTok etc."""
+    if not RAPIDAPI_KEY:
+        return DownloadResult(
+            success=False,
+            error="API key not configured. Please add RAPIDAPI_KEY to environment.",
+        )
+
+    headers = {
+        "Content-Type": "application/json",
+        "x-rapidapi-host": RAPIDAPI_HOST,
+        "x-rapidapi-key": RAPIDAPI_KEY,
     }
 
-    last_error = "All download services failed. Please try again later."
+    try:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(30),
+            follow_redirects=True,
+        ) as client:
+            resp = await client.post(
+                RAPIDAPI_URL,
+                json={"url": url},
+                headers=headers,
+            )
+            data = resp.json()
+    except Exception as e:
+        return DownloadResult(success=False, error=f"API request failed: {str(e)}")
 
-    for instance in COBALT_INSTANCES:
-        try:
-            async with httpx.AsyncClient(
-                timeout=httpx.Timeout(30),
-                follow_redirects=True,
-            ) as client:
-                resp = await client.post(
-                    instance,
-                    json=payload,
-                    headers=COBALT_HEADERS,
-                )
+    if resp.status_code != 200:
+        return DownloadResult(
+            success=False,
+            error=f"Download service error (HTTP {resp.status_code})",
+        )
 
-                # Skip this instance if it returns 400/403/429
-                if resp.status_code in (400, 403, 429):
-                    last_error = f"Service unavailable (HTTP {resp.status_code})"
-                    continue
+    options = []
 
-                data   = resp.json()
-                status = data.get("status", "")
+    # Handle different response formats from Snap Video API
+    # Format 1: direct url field
+    if data.get("url"):
+        dl_url = data["url"]
+        if isinstance(dl_url, str):
+            options.append(MediaOption(
+                label="Download (Best Quality)",
+                url=dl_url,
+                media_type="video",
+                format="mp4",
+                thumbnail=data.get("thumbnail"),
+            ))
+        elif isinstance(dl_url, list):
+            for i, item in enumerate(dl_url):
+                if isinstance(item, dict) and item.get("url"):
+                    options.append(MediaOption(
+                        label=item.get("quality", f"Option {i+1}"),
+                        url=item["url"],
+                        media_type="video",
+                        format=item.get("ext", "mp4"),
+                        thumbnail=data.get("thumbnail"),
+                    ))
+                elif isinstance(item, str):
+                    options.append(MediaOption(
+                        label=f"Option {i+1}",
+                        url=item,
+                        media_type="video",
+                        format="mp4",
+                    ))
 
-                # Error from this instance — try next
-                if status == "error":
-                    if isinstance(data.get("error"), dict):
-                        last_error = data["error"].get("code", "unknown")
-                    else:
-                        last_error = str(data.get("error", "unknown"))
-                    continue
+    # Format 2: medias array
+    if not options and data.get("medias"):
+        for i, item in enumerate(data["medias"]):
+            item_url = item.get("url") or item.get("videoUrl")
+            if item_url:
+                quality = item.get("quality", "") or item.get("resolution", "")
+                options.append(MediaOption(
+                    label=f"{quality} {item.get('extension','mp4').upper()}".strip(),
+                    url=item_url,
+                    media_type="video" if "video" in item.get("extension","mp4") else "audio",
+                    format=item.get("extension", "mp4"),
+                    file_size=item.get("size"),
+                    thumbnail=data.get("thumbnail"),
+                ))
 
-                options = []
+    # Format 3: links array
+    if not options and data.get("links"):
+        for i, item in enumerate(data["links"]):
+            item_url = item.get("url") or item.get("link")
+            if item_url:
+                options.append(MediaOption(
+                    label=item.get("quality", f"Option {i+1}"),
+                    url=item_url,
+                    media_type="video",
+                    format=item.get("type", "mp4"),
+                    thumbnail=data.get("thumbnail"),
+                ))
 
-                # Direct stream/redirect
-                if status in ("redirect", "stream", "tunnel"):
-                    dl_url = data.get("url")
-                    if dl_url:
-                        options.append(MediaOption(
-                            label="Download (Best Quality)",
-                            url=dl_url,
-                            media_type="video",
-                            format="mp4",
-                        ))
+    if not options:
+        return DownloadResult(
+            success=False,
+            error="No downloadable media found. The content may be private.",
+        )
 
-                # Multiple options picker
-                if status == "picker":
-                    for i, item in enumerate(data.get("picker", [])):
-                        item_url = item.get("url", "")
-                        if item_url:
-                            options.append(MediaOption(
-                                label=f"Option {i + 1}",
-                                url=item_url,
-                                media_type=item.get("type", "video"),
-                                format="mp4",
-                                thumbnail=item.get("thumb"),
-                            ))
-
-                if options:
-                    return DownloadResult(success=True, options=options)
-
-                last_error = "No downloadable stream found from this service."
-
-        except Exception as e:
-            last_error = str(e)
-            continue
+    title     = data.get("title") or data.get("name") or "Video"
+    thumbnail = data.get("thumbnail") or data.get("thumb")
 
     return DownloadResult(
-        success=False,
-        error=f"Could not download: {last_error}",
+        success=True,
+        title=title,
+        thumbnail=thumbnail,
+        options=options,
     )
 
 
@@ -226,9 +240,9 @@ async def handle_direct(detection: DetectionResult, **kwargs) -> DownloadResult:
             error=f"File too large. Max: {settings.max_file_size_mb} MB",
         )
 
-    path  = urlparse(url).path
-    name  = sanitize_filename(path.split("/")[-1] or "download")
-    ext   = Path(name).suffix or ".bin"
+    path = urlparse(url).path
+    name = sanitize_filename(path.split("/")[-1] or "download")
+    ext  = Path(name).suffix or ".bin"
 
     return DownloadResult(
         success=True,
@@ -249,19 +263,11 @@ async def handle_direct(detection: DetectionResult, **kwargs) -> DownloadResult:
 # ══════════════════════════════════════════════════════════
 #  YOUTUBE
 # ══════════════════════════════════════════════════════════
-async def handle_youtube(detection: DetectionResult, quality: str = "best", **kwargs) -> DownloadResult:
-    """Use Cobalt API for YouTube downloads."""
-    result = await _cobalt_download(detection.url, mode="auto")
+async def handle_youtube(detection: DetectionResult, **kwargs) -> DownloadResult:
+    """Use RapidAPI for YouTube downloads."""
+    result = await _rapidapi_download(detection.url)
     if result.success:
         result.title = result.title or "YouTube Video"
-        # Add audio-only option
-        audio_result = await _cobalt_download(detection.url, mode="audio")
-        if audio_result.success and audio_result.options:
-            audio_opt        = audio_result.options[0]
-            audio_opt.label  = "Audio Only (MP3)"
-            audio_opt.format = "mp3"
-            audio_opt.media_type = "audio"
-            result.options.append(audio_opt)
     return result
 
 
@@ -269,8 +275,8 @@ async def handle_youtube(detection: DetectionResult, quality: str = "best", **kw
 #  INSTAGRAM
 # ══════════════════════════════════════════════════════════
 async def handle_instagram(detection: DetectionResult, **kwargs) -> DownloadResult:
-    """Use Cobalt API for Instagram downloads."""
-    result = await _cobalt_download(detection.url)
+    """Use RapidAPI for Instagram downloads."""
+    result = await _rapidapi_download(detection.url)
     if result.success:
         result.title = result.title or "Instagram Post"
     return result
@@ -280,8 +286,8 @@ async def handle_instagram(detection: DetectionResult, **kwargs) -> DownloadResu
 #  TIKTOK
 # ══════════════════════════════════════════════════════════
 async def handle_tiktok(detection: DetectionResult, **kwargs) -> DownloadResult:
-    """Use Cobalt API for TikTok downloads."""
-    result = await _cobalt_download(detection.url)
+    """Use RapidAPI for TikTok downloads."""
+    result = await _rapidapi_download(detection.url)
     if result.success:
         result.title = result.title or "TikTok Video"
     return result
@@ -291,8 +297,8 @@ async def handle_tiktok(detection: DetectionResult, **kwargs) -> DownloadResult:
 #  TWITTER
 # ══════════════════════════════════════════════════════════
 async def handle_twitter(detection: DetectionResult, **kwargs) -> DownloadResult:
-    """Use Cobalt API for Twitter/X downloads."""
-    result = await _cobalt_download(detection.url)
+    """Use RapidAPI for Twitter/X downloads."""
+    result = await _rapidapi_download(detection.url)
     if result.success:
         result.title = result.title or "Twitter Video"
     return result
@@ -302,8 +308,8 @@ async def handle_twitter(detection: DetectionResult, **kwargs) -> DownloadResult
 #  FACEBOOK
 # ══════════════════════════════════════════════════════════
 async def handle_facebook(detection: DetectionResult, **kwargs) -> DownloadResult:
-    """Use Cobalt API for Facebook downloads."""
-    result = await _cobalt_download(detection.url)
+    """Use RapidAPI for Facebook downloads."""
+    result = await _rapidapi_download(detection.url)
     if result.success:
         result.title = result.title or "Facebook Video"
     return result
@@ -313,8 +319,8 @@ async def handle_facebook(detection: DetectionResult, **kwargs) -> DownloadResul
 #  VIMEO
 # ══════════════════════════════════════════════════════════
 async def handle_vimeo(detection: DetectionResult, **kwargs) -> DownloadResult:
-    """Use Cobalt API for Vimeo downloads."""
-    result = await _cobalt_download(detection.url)
+    """Use RapidAPI for Vimeo downloads."""
+    result = await _rapidapi_download(detection.url)
     if result.success:
         result.title = result.title or "Vimeo Video"
     return result
