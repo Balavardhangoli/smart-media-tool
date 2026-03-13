@@ -113,63 +113,31 @@ async def _rapidapi_download(url: str) -> DownloadResult:
 
     options = []
 
-    # Handle different response formats from Snap Video API
-    # Format 1: direct url field
-    if data.get("url"):
-        dl_url = data["url"]
-        if isinstance(dl_url, str):
-            options.append(MediaOption(
-                label="Download (Best Quality)",
-                url=dl_url,
-                media_type="video",
-                format="mp4",
-                thumbnail=data.get("thumbnail"),
-            ))
-        elif isinstance(dl_url, list):
-            for i, item in enumerate(dl_url):
-                if isinstance(item, dict) and item.get("url"):
-                    options.append(MediaOption(
-                        label=item.get("quality", f"Option {i+1}"),
-                        url=item["url"],
-                        media_type="video",
-                        format=item.get("ext", "mp4"),
-                        thumbnail=data.get("thumbnail"),
-                    ))
-                elif isinstance(item, str):
-                    options.append(MediaOption(
-                        label=f"Option {i+1}",
-                        url=item,
-                        media_type="video",
-                        format="mp4",
-                    ))
-
-    # Format 2: medias array
-    if not options and data.get("medias"):
+    # Use medias array — skip the top-level url field (it points back to YouTube)
+    if data.get("medias"):
         for i, item in enumerate(data["medias"]):
             item_url = item.get("url") or item.get("videoUrl")
-            if item_url:
-                quality = item.get("quality", "") or item.get("resolution", "")
-                options.append(MediaOption(
-                    label=f"{quality} {item.get('extension','mp4').upper()}".strip(),
-                    url=item_url,
-                    media_type="video" if "video" in item.get("extension","mp4") else "audio",
-                    format=item.get("extension", "mp4"),
-                    file_size=item.get("size"),
-                    thumbnail=data.get("thumbnail"),
-                ))
+            if not item_url:
+                continue
+            quality   = item.get("quality", "") or f"Option {i+1}"
+            extension = item.get("extension", "mp4").lower()
+            size      = item.get("size") or 0
 
-    # Format 3: links array
-    if not options and data.get("links"):
-        for i, item in enumerate(data["links"]):
-            item_url = item.get("url") or item.get("link")
-            if item_url:
-                options.append(MediaOption(
-                    label=item.get("quality", f"Option {i+1}"),
-                    url=item_url,
-                    media_type="video",
-                    format=item.get("type", "mp4"),
-                    thumbnail=data.get("thumbnail"),
-                ))
+            # Skip items with size 0 unless it is the only option
+            # (size 0 means server-side merge required — may not download correctly)
+            media_type = "audio" if extension in ("mp3", "m4a", "ogg", "wav") else "video"
+
+            options.append(MediaOption(
+                label=f"{quality} {extension.upper()}",
+                url=item_url,
+                media_type=media_type,
+                format=extension,
+                file_size=size if size > 0 else None,
+                thumbnail=data.get("thumbnail"),
+            ))
+
+    # Sort: real video files (size > 0) first
+    options.sort(key=lambda o: (o.file_size or 0), reverse=True)
 
     if not options:
         return DownloadResult(
