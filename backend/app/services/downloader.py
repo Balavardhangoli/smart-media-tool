@@ -141,18 +141,20 @@ async def _rapidapi_download(url: str) -> DownloadResult:
                         format="mp4",
                     ))
 
-    # Format 2: medias array
+  # Format 2: medias array (Snap Video format)
     if not options and data.get("medias"):
         for i, item in enumerate(data["medias"]):
-            item_url = item.get("url") or item.get("videoUrl")
+            item_url = item.get("url") or item.get("videoUrl") or item.get("video")
             if item_url:
-                quality = item.get("quality", "") or item.get("resolution", "")
+                quality = item.get("quality", "") or item.get("resolution", "") or f"Option {i+1}"
+                ext     = item.get("extension", "") or item.get("ext", "mp4")
+                size    = item.get("size") or item.get("filesize")
                 options.append(MediaOption(
-                    label=f"{quality} {item.get('extension','mp4').upper()}".strip(),
+                    label=f"{quality} {ext.upper()}".strip(),
                     url=item_url,
-                    media_type="video" if "video" in item.get("extension","mp4") else "audio",
-                    format=item.get("extension", "mp4"),
-                    file_size=item.get("size"),
+                    media_type="audio" if "audio" in ext.lower() or "mp3" in ext.lower() else "video",
+                    format=ext,
+                    file_size=size,
                     thumbnail=data.get("thumbnail"),
                 ))
 
