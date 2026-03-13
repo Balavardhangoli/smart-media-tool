@@ -932,7 +932,8 @@ function renderBulkResults(data) {
 // ══════════════════════════════════════════════════════════
 async function streamDownload(url, label) {
   try {
-    // Stream through backend — forces correct filename + format
+    showStatus('info', `⏳ Preparing download...`);
+
     const res = await fetch(`${API}/download/fetch`, {
       method: 'POST',
       headers: {
@@ -943,29 +944,38 @@ async function streamDownload(url, label) {
     });
 
     if (!res.ok) {
-      window.open(url, '_blank');
+      const err = await res.json().catch(() => ({}));
+      showStatus('error', `❌ ${err.detail || 'Download failed.'}`);
       return;
     }
 
     // Get filename from Content-Disposition header
     const disposition = res.headers.get('content-disposition') || '';
-    let filename = 'download';
+    let filename = label || 'download';
     if (disposition.includes('filename=')) {
       filename = disposition.split('filename=')[1].replace(/['"]/g, '').trim();
     }
 
+    // Force download — never open in browser
     const blob = await res.blob();
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = blobUrl;
-    a.download = filename;
+    a.download = filename;  // This forces download not open
+    a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(blobUrl);
-    showStatus('success', `✅ Download started: <strong>${filename}</strong>`);
+
+    // Cleanup
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    }, 1000);
+
+    showStatus('success', `✅ Downloaded: <strong>${filename}</strong>`);
+
   } catch(e) {
-    window.open(url, '_blank');
+    showStatus('error', `❌ Download failed: ${e.message}`);
   }
 }
 
