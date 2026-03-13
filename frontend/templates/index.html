@@ -932,23 +932,22 @@ function renderBulkResults(data) {
 // ══════════════════════════════════════════════════════════
 async function streamDownload(url, label) {
   try {
-    // Use backend streaming endpoint
-    const res = await fetch(`${API}/download/fetch`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
-      body: JSON.stringify({ url, filename: label }),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    const blob = await res.blob();
-    const a    = document.createElement('a');
-    a.href     = URL.createObjectURL(blob);
-    a.download = label.replace(/[^\w\s.-]/g, '_');
+    // Try direct download first (works for most URLs)
+    const ext = label.toLowerCase().includes('audio') || 
+                label.toLowerCase().includes('mp3') ? '.mp3' : '.mp4';
+    const filename = (label || 'video').replace(/[^\w\s.-]/g, '_') + ext;
+
+    // Create hidden link and click it
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.target = '_blank';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     showStatus('success', `✅ Download started: <strong>${label}</strong>`);
-  } catch {
-    // Fallback to direct URL for platforms like YouTube (signed URLs)
+  } catch(e) {
+    // Fallback - open in new tab
     window.open(url, '_blank');
   }
 }
