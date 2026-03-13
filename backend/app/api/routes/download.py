@@ -221,21 +221,44 @@ async def fetch(
 
     filename, mime_type = await get_filename_and_mime(url)
 
-    async def stream_file():
+    # Download full file first to verify it is valid
+    try:
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(60),
             follow_redirects=True,
         ) as client:
-            async with client.stream("GET", url, headers={
+            response = await client.get(url, headers={
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                 "Referer": "https://www.instagram.com/",
                 "Accept": "*/*",
-            }) as response:
-                async for chunk in response.aiter_bytes(chunk_size=8192):
-                    yield chunk
+            })
 
-    return StreamingResponse(
-        stream_file(),
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Source server returned error {response.status_code}. Cannot download this file."
+                )
+
+            # Use content-type from actual response if available
+            actual_content_type = response.headers.get("content-type", "").split(";")[0].strip()
+            if actual_content_type and actual_content_type != "text/html":
+                mime_type = actual_content_type
+                # Fix filename extension based on actual content type
+                actual_ext = MIME_TO_EXT.get(actual_content_type, "")
+                if actual_ext:
+                    base = filename.rsplit(".", 1)[0] if "." in filename else filename
+                    filename = base + actual_ext
+
+            file_content = response.content
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not download file: {str(e)}")
+
+    from fastapi.responses import Response
+    return Response(
+        content=file_content,
         media_type=mime_type,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
