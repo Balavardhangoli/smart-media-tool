@@ -83,10 +83,12 @@ async def _rapidapi_download(url: str) -> DownloadResult:
         )
 
     headers = {
-        "Content-Type": "application/json",
         "x-rapidapi-host": RAPIDAPI_HOST,
         "x-rapidapi-key": RAPIDAPI_KEY,
     }
+
+    # Clean URL - remove extra spaces and trailing slashes
+    clean_url = url.strip().rstrip("/")
 
     try:
         async with httpx.AsyncClient(
@@ -95,11 +97,11 @@ async def _rapidapi_download(url: str) -> DownloadResult:
         ) as client:
             resp = await client.post(
                 RAPIDAPI_URL,
-                json={"url": url},
+                data={"url": clean_url},
                 headers=headers,
             )
             data = resp.json()
-        logger.info(f"rapidapi_response: {data}")
+            logger.info(f"rapidapi_response: {data}")
     except Exception as e:
         return DownloadResult(success=False, error=f"API request failed: {str(e)}")
 
@@ -141,20 +143,18 @@ async def _rapidapi_download(url: str) -> DownloadResult:
                         format="mp4",
                     ))
 
-  # Format 2: medias array (Snap Video format)
+    # Format 2: medias array
     if not options and data.get("medias"):
         for i, item in enumerate(data["medias"]):
-            item_url = item.get("url") or item.get("videoUrl") or item.get("video")
+            item_url = item.get("url") or item.get("videoUrl")
             if item_url:
-                quality = item.get("quality", "") or item.get("resolution", "") or f"Option {i+1}"
-                ext     = item.get("extension", "") or item.get("ext", "mp4")
-                size    = item.get("size") or item.get("filesize")
+                quality = item.get("quality", "") or item.get("resolution", "")
                 options.append(MediaOption(
-                    label=f"{quality} {ext.upper()}".strip(),
+                    label=f"{quality} {item.get('extension','mp4').upper()}".strip(),
                     url=item_url,
-                    media_type="audio" if "audio" in ext.lower() or "mp3" in ext.lower() else "video",
-                    format=ext,
-                    file_size=size,
+                    media_type="video" if "video" in item.get("extension","mp4") else "audio",
+                    format=item.get("extension", "mp4"),
+                    file_size=item.get("size"),
                     thumbnail=data.get("thumbnail"),
                 ))
 
