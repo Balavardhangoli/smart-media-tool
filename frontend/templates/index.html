@@ -932,22 +932,37 @@ function renderBulkResults(data) {
 // ══════════════════════════════════════════════════════════
 async function streamDownload(url, label) {
   try {
-    // Try direct download first (works for most URLs)
-    const ext = label.toLowerCase().includes('audio') || 
-                label.toLowerCase().includes('mp3') ? '.mp3' : '.mp4';
-    const filename = (label || 'video').replace(/[^\w\s.-]/g, '_') + ext;
+    const ext = label.toLowerCase().includes('mp3') || 
+                label.toLowerCase().includes('audio') ? 'mp3' : 'mp4';
+    const filename = (label || 'video').replace(/[^\w\s.-]/g, '_') + '.' + ext;
 
-    // Create hidden link and click it
+    // Stream through our backend to force download
+    const res = await fetch(`${API}/download/fetch`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
+      },
+      body: JSON.stringify({ url, filename }),
+    });
+
+    if (!res.ok) {
+      // Fallback to direct open
+      window.open(url, '_blank');
+      return;
+    }
+
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
+    a.href = blobUrl;
     a.download = filename;
-    a.target = '_blank';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
     showStatus('success', `✅ Download started: <strong>${label}</strong>`);
   } catch(e) {
-    // Fallback - open in new tab
     window.open(url, '_blank');
   }
 }
