@@ -99,6 +99,7 @@ async def _rapidapi_download(url: str) -> DownloadResult:
                 headers=headers,
             )
             data = resp.json()
+        logger.info(f"rapidapi_response: {data}")
     except Exception as e:
         return DownloadResult(success=False, error=f"API request failed: {str(e)}")
 
