@@ -39,7 +39,14 @@ COBALT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
 }
 
-COBALT_API = "https://api.cobalt.tools/"
+# Multiple public Cobalt instances - tries each until one works
+COBALT_INSTANCES = [
+    "https://cobalt.urdimensions.com/",
+    "https://cobalt.flxg.de/",
+    "https://cobalt-api.kkow.ru/",
+    "https://cobalt.drgns.space/",
+    "https://api.cobalt.tools/",
+]
 
 
 @dataclass
@@ -82,7 +89,8 @@ def _make_client() -> httpx.AsyncClient:
 # ══════════════════════════════════════════════════════════
 async def _cobalt_download(url: str, mode: str = "auto") -> DownloadResult:
     """
-    Call Cobalt API to get download URL.
+    Call Cobalt API instances to get download URL.
+    Tries multiple public instances until one works.
     Supports YouTube, Instagram, TikTok, Twitter, Facebook, Vimeo.
     """
     payload = {
@@ -92,69 +100,75 @@ async def _cobalt_download(url: str, mode: str = "auto") -> DownloadResult:
         "downloadMode": mode,
     }
 
-    try:
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(30),
-            follow_redirects=True,
-        ) as client:
-            resp = await client.post(
-                COBALT_API,
-                json=payload,
-                headers=COBALT_HEADERS,
-            )
-            data = resp.json()
-    except Exception as e:
-        return DownloadResult(
-            success=False,
-            error=f"Could not connect to download service: {str(e)}",
-        )
+    last_error = "All download services failed. Please try again later."
 
-    status  = data.get("status", "")
-    options = []
+    for instance in COBALT_INSTANCES:
+        try:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(30),
+                follow_redirects=True,
+            ) as client:
+                resp = await client.post(
+                    instance,
+                    json=payload,
+                    headers=COBALT_HEADERS,
+                )
 
-    # Error response
-    if status == "error":
-        error_code = ""
-        if isinstance(data.get("error"), dict):
-            error_code = data["error"].get("code", "unknown")
-        else:
-            error_code = str(data.get("error", "unknown"))
-        return DownloadResult(
-            success=False,
-            error=f"Could not process this URL. ({error_code})",
-        )
+                # Skip this instance if it returns 400/403/429
+                if resp.status_code in (400, 403, 429):
+                    last_error = f"Service unavailable (HTTP {resp.status_code})"
+                    continue
 
-    # Direct stream/redirect
-    if status in ("redirect", "stream", "tunnel"):
-        dl_url = data.get("url")
-        if dl_url:
-            options.append(MediaOption(
-                label="Download (Best Quality)",
-                url=dl_url,
-                media_type="video",
-                format="mp4",
-            ))
+                data   = resp.json()
+                status = data.get("status", "")
 
-    # Multiple options picker
-    if status == "picker":
-        for i, item in enumerate(data.get("picker", [])):
-            item_url = item.get("url", "")
-            if item_url:
-                options.append(MediaOption(
-                    label=f"Option {i + 1}",
-                    url=item_url,
-                    media_type=item.get("type", "video"),
-                    format="mp4",
-                    thumbnail=item.get("thumb"),
-                ))
+                # Error from this instance — try next
+                if status == "error":
+                    if isinstance(data.get("error"), dict):
+                        last_error = data["error"].get("code", "unknown")
+                    else:
+                        last_error = str(data.get("error", "unknown"))
+                    continue
 
-    if not options:
-        return DownloadResult(
-            success=False,
-            error="No downloadable media found. The content may be private or unavailable.",
-        )
+                options = []
 
-    return DownloadResult(success=True, options=options)
+                # Direct stream/redirect
+                if status in ("redirect", "stream", "tunnel"):
+                    dl_url = data.get("url")
+                    if dl_url:
+                        options.append(MediaOption(
+                            label="Download (Best Quality)",
+                            url=dl_url,
+                            media_type="video",
+                            format="mp4",
+                        ))
+
+                # Multiple options picker
+                if status == "picker":
+                    for i, item in enumerate(data.get("picker", [])):
+                        item_url = item.get("url", "")
+                        if item_url:
+                            options.append(MediaOption(
+                                label=f"Option {i + 1}",
+                                url=item_url,
+                                media_type=item.get("type", "video"),
+                                format="mp4",
+                                thumbnail=item.get("thumb"),
+                            ))
+
+                if options:
+                    return DownloadResult(success=True, options=options)
+
+                last_error = "No downloadable stream found from this service."
+
+        except Exception as e:
+            last_error = str(e)
+            continue
+
+    return DownloadResult(
+        success=False,
+        error=f"Could not download: {last_error}",
+    )
 
 
 # ══════════════════════════════════════════════════════════
