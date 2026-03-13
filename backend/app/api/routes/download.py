@@ -141,7 +141,11 @@ async def fetch(
     import httpx
     from app.utils.file_utils import sanitize_filename
 
-    filename = sanitize_filename(url.split("/")[-1].split("?")[0] or "download")
+    url_path = url.split("/")[-1].split("?")[0]
+if url_path and "." in url_path:
+    filename = sanitize_filename(url_path)
+else:
+    filename = "video.mp4"
 
     async def stream_file():
         async with httpx.AsyncClient(
