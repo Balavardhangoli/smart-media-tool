@@ -141,11 +141,85 @@ async def fetch(
     import httpx
     from app.utils.file_utils import sanitize_filename
 
-    url_path = url.split("/")[-1].split("?")[0]
-    if url_path and "." in url_path:
-        filename = sanitize_filename(url_path)
-    else:
-        filename = "video.mp4"
+    # ── Smart filename + MIME detection ──────────────────
+    MIME_TO_EXT = {
+        "video/mp4":        ".mp4",
+        "video/webm":       ".webm",
+        "video/quicktime":  ".mov",
+        "video/x-matroska": ".mkv",
+        "audio/mpeg":       ".mp3",
+        "audio/mp4":        ".m4a",
+        "audio/ogg":        ".ogg",
+        "audio/wav":        ".wav",
+        "image/jpeg":       ".jpg",
+        "image/png":        ".png",
+        "image/gif":        ".gif",
+        "image/webp":       ".webp",
+        "image/svg+xml":    ".svg",
+        "application/pdf":  ".pdf",
+        "application/msword": ".doc",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+        "application/vnd.ms-excel": ".xls",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+        "application/zip":  ".zip",
+        "text/plain":       ".txt",
+        "text/html":        ".html",
+    }
+
+    MIME_TO_MEDIA = {
+        "video": "video/mp4",
+        "audio": "audio/mpeg",
+        "image": "image/jpeg",
+        "document": "application/octet-stream",
+    }
+
+    async def get_filename_and_mime(download_url: str):
+        """HEAD request to detect real content type and filename."""
+        try:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(10),
+                follow_redirects=True,
+            ) as client:
+                head = await client.head(download_url, headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                    "Referer": "https://www.instagram.com/",
+                })
+                content_type = head.headers.get("content-type", "").split(";")[0].strip()
+                content_disp = head.headers.get("content-disposition", "")
+
+                # Try to get filename from content-disposition header
+                fname = None
+                if "filename=" in content_disp:
+                    fname = content_disp.split("filename=")[-1].strip().strip('"')
+
+                # Get extension from content-type
+                ext = MIME_TO_EXT.get(content_type, "")
+
+                # Get extension from URL path
+                url_path = download_url.split("/")[-1].split("?")[0]
+                url_ext  = "." + url_path.split(".")[-1].lower() if "." in url_path else ""
+
+                # Decide filename
+                if fname:
+                    final_name = sanitize_filename(fname)
+                    if ext and not final_name.endswith(ext):
+                        final_name += ext
+                elif url_ext and url_ext in MIME_TO_EXT.values():
+                    final_name = sanitize_filename(url_path) if url_path else f"download{url_ext}"
+                elif ext:
+                    final_name = f"download{ext}"
+                else:
+                    final_name = "download.mp4"
+
+                return final_name, content_type or "application/octet-stream"
+        except Exception:
+            # Fallback: guess from URL
+            url_path = download_url.split("/")[-1].split("?")[0]
+            if url_path and "." in url_path:
+                return sanitize_filename(url_path), "application/octet-stream"
+            return "download.mp4", "application/octet-stream"
+
+    filename, mime_type = await get_filename_and_mime(url)
 
     async def stream_file():
         async with httpx.AsyncClient(
@@ -162,7 +236,7 @@ async def fetch(
 
     return StreamingResponse(
         stream_file(),
-        media_type="application/octet-stream",
+        media_type=mime_type,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
