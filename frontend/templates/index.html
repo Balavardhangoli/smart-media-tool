@@ -945,7 +945,7 @@ async function streamDownload(url, label) {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      showStatus('error', `❌ ${err.detail || 'This file cannot be downloaded automatically. The source website may be blocking downloads.'}`);
+      showStatus('error', `❌ ${err.detail || 'This file cannot be downloaded.'}`);
       return;
     }
 
@@ -956,16 +956,18 @@ async function streamDownload(url, label) {
       filename = disposition.split('filename=')[1].replace(/['"]/g, '').trim();
     }
 
-    // Force download
+    // Force download using blob
     const blob = await res.blob();
 
-    // Check if blob is too small (error page)
     if (blob.size < 100) {
-      showStatus('error', `❌ File could not be downloaded. The source website may be blocking downloads.`);
+      showStatus('error', `❌ File could not be downloaded.`);
       return;
     }
 
-    const blobUrl = URL.createObjectURL(blob);
+    // Force download — works for ALL file types including PDF
+    const blobUrl = URL.createObjectURL(
+      new Blob([blob], { type: 'application/octet-stream' })
+    );
     const a = document.createElement('a');
     a.href = blobUrl;
     a.download = filename;
@@ -980,7 +982,7 @@ async function streamDownload(url, label) {
     showStatus('success', `✅ Downloaded: <strong>${filename}</strong>`);
 
   } catch(e) {
-    showStatus('error', `❌ Download failed. Please try a different URL.`);
+    showStatus('error', `❌ Download failed. Please try again.`);
   }
 }
 
