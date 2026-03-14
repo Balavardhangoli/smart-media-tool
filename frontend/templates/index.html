@@ -945,7 +945,7 @@ async function streamDownload(url, label) {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      showStatus('error', `❌ ${err.detail || 'Download failed.'}`);
+      showStatus('error', `❌ ${err.detail || 'This file cannot be downloaded automatically. The source website may be blocking downloads.'}`);
       return;
     }
 
@@ -956,17 +956,22 @@ async function streamDownload(url, label) {
       filename = disposition.split('filename=')[1].replace(/['"]/g, '').trim();
     }
 
-    // Force download — never open in browser
+    // Force download
     const blob = await res.blob();
+
+    // Check if blob is too small (error page)
+    if (blob.size < 100) {
+      showStatus('error', `❌ File could not be downloaded. The source website may be blocking downloads.`);
+      return;
+    }
+
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = blobUrl;
-    a.download = filename;  // This forces download not open
+    a.download = filename;
     a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
-
-    // Cleanup
     setTimeout(() => {
       document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
@@ -975,7 +980,7 @@ async function streamDownload(url, label) {
     showStatus('success', `✅ Downloaded: <strong>${filename}</strong>`);
 
   } catch(e) {
-    showStatus('error', `❌ Download failed: ${e.message}`);
+    showStatus('error', `❌ Download failed. Please try a different URL.`);
   }
 }
 
