@@ -842,7 +842,19 @@ const API = '/api/v1';
 let authToken    = localStorage.getItem('smf_token') || null;
 let isBulkMode   = false;
 let isProcessing = false;
-let history      = JSON.parse(localStorage.getItem('smf_history') || '[]');
+
+// ── Per-user history key ─────────────────────────────────
+function getHistoryKey() {
+  const user = localStorage.getItem('smf_user');
+  if (user) {
+    try {
+      const u = JSON.parse(user);
+      return 'smf_history_' + (u.username || u.email || 'guest');
+    } catch(e) {}
+  }
+  return 'smf_history_guest';
+}
+let history = JSON.parse(localStorage.getItem(getHistoryKey()) || '[]');
 
 // ══════════════════════════════════════════════════════════
 //  ELEMENT REFS
@@ -1201,7 +1213,7 @@ function addToHistory(url, platform, title, media_type, file_size) {
     time: Date.now()
   });
   if (history.length > 100) history.pop();
-  localStorage.setItem('smf_history', JSON.stringify(history));
+  localStorage.setItem(getHistoryKey(), JSON.stringify(history));
   renderHistory();
 }
 
@@ -1292,11 +1304,12 @@ document.addEventListener('click', e => {
   const menu = document.getElementById('userMenu');
   if (menu && !menu.contains(e.target)) closeUserMenu();
 
-  // Close downloads panel if clicked on overlay background
+  // Close downloads panel ONLY if clicking dark overlay background
   const overlay = document.getElementById('dlPanelOverlay');
   const panel   = document.getElementById('dlPanel');
   if (overlay && overlay.classList.contains('open')) {
-    if (panel && !panel.contains(e.target) && !e.target.closest('#userMenu')) {
+    // Must click exactly on overlay — not panel, not any button
+    if (e.target === overlay) {
       closeDlPanelBtn();
     }
   }
@@ -1313,6 +1326,9 @@ function handleLogout() {
   document.getElementById('authButtons').style.display = '';
   document.getElementById('userMenu').style.display = 'none';
   closeUserMenu();
+  // Clear history display on logout
+  history = [];
+  renderHistory();
   showStatus('info', '👋 You have been signed out successfully.');
 }
 
@@ -1334,8 +1350,13 @@ function setLoggedInUI(userData) {
   document.getElementById('dropdownName').textContent    = name;
   document.getElementById('dropdownEmail').textContent   = email;
 
-  // Save user data
-  if (userData) localStorage.setItem('smf_user', JSON.stringify(userData));
+  // Save user data and reload history for this user
+  if (userData) {
+    localStorage.setItem('smf_user', JSON.stringify(userData));
+    // Reload history for this specific user
+    history = JSON.parse(localStorage.getItem(getHistoryKey()) || '[]');
+    renderHistory();
+  }
 }
 
 // ── LOGIN ───────────────────────────────────────────────
@@ -1487,7 +1508,7 @@ function filterDownloads() {
 function clearAllDownloads() {
   if (!confirm('Clear all download history? This cannot be undone.')) return;
   history = [];
-  localStorage.setItem('smf_history', '[]');
+  localStorage.setItem(getHistoryKey(), '[]');
   renderDlPanel();
   renderHistory();
 }
