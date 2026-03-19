@@ -637,7 +637,7 @@ footer a:hover{color:var(--amber);}
             <div class="user-info-name" id="dropdownName">User</div>
             <div class="user-info-email" id="dropdownEmail"></div>
           </div>
-          <button class="dropdown-item" onclick="openDlPanel()"><span>📥</span> Downloads</button>
+          <button class="dropdown-item" onclick="event.stopPropagation();openDlPanel()"><span>📥</span> Downloads</button>
           <button class="dropdown-item" onclick="closeUserMenu()"><span>⚙️</span> Settings</button>
           <div class="dropdown-divider"></div>
           <button class="dropdown-item danger" onclick="handleLogout()"><span>🚪</span> Sign out</button>
@@ -1318,15 +1318,13 @@ document.addEventListener('click', e => {
   // Close user menu if clicked outside
   const menu = document.getElementById('userMenu');
   if (menu && !menu.contains(e.target)) closeUserMenu();
+});
 
-  // Close downloads panel ONLY if clicking dark overlay background
-  const overlay = document.getElementById('dlPanelOverlay');
-  const panel   = document.getElementById('dlPanel');
-  if (overlay && overlay.classList.contains('open')) {
-    // Must click exactly on overlay — not panel, not any button
-    if (e.target === overlay) {
-      closeDlPanelBtn();
-    }
+// Separate listener for closing downloads panel overlay
+document.getElementById('dlPanelOverlay').addEventListener('click', function(e) {
+  // Only close if clicking the dark background — not inside the panel
+  if (e.target === this) {
+    closeDlPanelBtn();
   }
 });
 
@@ -1506,17 +1504,16 @@ const PLATFORM_ICONS = {
   document:'📄', webpage:'🌐', unknown:'🔗'
 };
 
+let _dlPanelJustOpened = false;
+
 function openDlPanel() {
+  event.stopPropagation(); // Stop click from bubbling to document
   closeUserMenu();
-  // Use setTimeout so click event finishes bubbling before panel opens
-  // This prevents the document click handler from immediately closing it
-  setTimeout(() => {
-    const overlay = document.getElementById('dlPanelOverlay');
-    if (overlay) {
-      overlay.classList.add('open');
-      renderDlPanel();
-    }
-  }, 50);
+  const overlay = document.getElementById('dlPanelOverlay');
+  if (overlay) {
+    overlay.classList.add('open');
+    renderDlPanel();
+  }
 }
 
 function closeDlPanel(e) {
