@@ -105,6 +105,42 @@ header{
   background:var(--amber);border-color:var(--amber);color:#0c0c0f;
 }
 .auth-btn.primary:hover{background:#f59e0b;}
+.user-menu{position:relative;display:inline-block;}
+.user-btn{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 14px;border-radius:10px;font-size:13px;font-weight:600;
+  border:1px solid var(--border);background:var(--surface);
+  color:var(--text);cursor:pointer;transition:all 0.2s;
+  font-family:'Cabinet Grotesk',sans-serif;
+}
+.user-btn:hover{border-color:var(--amber);}
+.user-avatar{
+  width:26px;height:26px;border-radius:8px;
+  background:linear-gradient(135deg,var(--amber),#f97316);
+  display:grid;place-items:center;font-size:12px;font-weight:800;color:#0c0c0f;
+}
+.user-dropdown{
+  position:absolute;right:0;top:calc(100% + 8px);
+  background:var(--card);border:1px solid var(--border);
+  border-radius:12px;padding:8px;min-width:180px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.3);
+  opacity:0;visibility:hidden;transform:translateY(-8px);
+  transition:all 0.2s;z-index:1000;
+}
+.user-menu.open .user-dropdown{opacity:1;visibility:visible;transform:translateY(0);}
+.user-info{padding:10px 12px 8px;border-bottom:1px solid var(--border);margin-bottom:6px;}
+.user-info-name{font-size:13px;font-weight:700;color:var(--text);}
+.user-info-email{font-size:11px;color:var(--text-2);margin-top:2px;}
+.dropdown-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 12px;border-radius:8px;font-size:13px;font-weight:500;
+  color:var(--text-2);cursor:pointer;transition:all 0.15s;border:none;
+  background:none;width:100%;text-align:left;font-family:'Cabinet Grotesk',sans-serif;
+}
+.dropdown-item:hover{background:var(--surface);color:var(--text);}
+.dropdown-item.danger{color:var(--red);}
+.dropdown-item.danger:hover{background:rgba(248,113,113,0.1);color:var(--red);}
+.dropdown-divider{height:1px;background:var(--border);margin:6px 0;}
 
 /* ── HERO ── */
 .hero{text-align:center;margin-bottom:48px;animation:fadeUp 0.6s ease both;}
@@ -932,57 +968,24 @@ function renderBulkResults(data) {
 // ══════════════════════════════════════════════════════════
 async function streamDownload(url, label) {
   try {
-    showStatus('info', `⏳ Preparing download...`);
-
+    // Use backend streaming endpoint
     const res = await fetch(`${API}/download/fetch`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
-      },
-      body: JSON.stringify({ url }),
+      headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
+      body: JSON.stringify({ url, filename: label }),
     });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      showStatus('error', `❌ ${err.detail || 'This file cannot be downloaded.'}`);
-      return;
-    }
-
-    // Get filename from Content-Disposition header
-    const disposition = res.headers.get('content-disposition') || '';
-    let filename = label || 'download';
-    if (disposition.includes('filename=')) {
-      filename = disposition.split('filename=')[1].replace(/['"]/g, '').trim();
-    }
-
-    // Force download using blob
+    if (!res.ok) throw new Error(await res.text());
     const blob = await res.blob();
-
-    if (blob.size < 100) {
-      showStatus('error', `❌ File could not be downloaded.`);
-      return;
-    }
-
-    // Force download — works for ALL file types including PDF
-    const blobUrl = URL.createObjectURL(
-      new Blob([blob], { type: 'application/octet-stream' })
-    );
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = filename;
-    a.style.display = 'none';
+    const a    = document.createElement('a');
+    a.href     = URL.createObjectURL(blob);
+    a.download = label.replace(/[^\w\s.-]/g, '_');
     document.body.appendChild(a);
     a.click();
-    setTimeout(() => {
-      document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
-    }, 1000);
-
-    showStatus('success', `✅ Downloaded: <strong>${filename}</strong>`);
-
-  } catch(e) {
-    showStatus('error', `❌ Download failed. Please try again.`);
+    document.body.removeChild(a);
+    showStatus('success', `✅ Download started: <strong>${label}</strong>`);
+  } catch {
+    // Fallback to direct URL for platforms like YouTube (signed URLs)
+    window.open(url, '_blank');
   }
 }
 
@@ -1054,9 +1057,9 @@ themeToggle.addEventListener('click', () => { isDark = !isDark; applyTheme(); })
 // ══════════════════════════════════════════════════════════
 //  AUTH MODAL
 // ══════════════════════════════════════════════════════════
-const authModal   = document.getElementById('authModal');
-const loginForm   = document.getElementById('loginForm');
-const registerForm= document.getElementById('registerForm');
+const authModal    = document.getElementById('authModal');
+const loginForm    = document.getElementById('loginForm');
+const registerForm = document.getElementById('registerForm');
 
 document.getElementById('openLogin').addEventListener('click', () => {
   loginForm.style.display = ''; registerForm.style.display = 'none';
@@ -1071,41 +1074,52 @@ authModal.addEventListener('click', e => { if (e.target === authModal) authModal
 document.getElementById('switchToRegister').addEventListener('click', () => { loginForm.style.display='none'; registerForm.style.display=''; });
 document.getElementById('switchToLogin').addEventListener('click', () => { loginForm.style.display=''; registerForm.style.display='none'; });
 
+// ── User Menu ───────────────────────────────────────────
+function toggleUserMenu() {
+  document.getElementById('userMenu').classList.toggle('open');
+}
+function closeUserMenu() {
+  document.getElementById('userMenu').classList.remove('open');
+}
+document.addEventListener('click', e => {
+  const menu = document.getElementById('userMenu');
+  if (menu && !menu.contains(e.target)) closeUserMenu();
+});
+
 // ══════════════════════════════════════════════════════════
 //  LOGOUT
 // ══════════════════════════════════════════════════════════
 function handleLogout() {
   authToken = null;
   localStorage.removeItem('smf_token');
-  // Reset header buttons back to original
-  const loginBtn    = document.getElementById('openLogin');
-  const registerBtn = document.getElementById('openRegister');
-  loginBtn.textContent = 'Log in';
-  loginBtn.style.background = '';
-  loginBtn.style.color = '';
-  loginBtn.onclick = () => {
-    loginForm.style.display = ''; registerForm.style.display = 'none';
-    authModal.classList.add('show');
-  };
-  registerBtn.textContent = 'Sign up';
-  registerBtn.style.display = '';
-  registerBtn.onclick = () => {
-    loginForm.style.display = 'none'; registerForm.style.display = '';
-    authModal.classList.add('show');
-  };
-  showStatus('info', '👋 You have been logged out successfully.');
+  localStorage.removeItem('smf_user');
+  // Show logged-out buttons
+  document.getElementById('authButtons').style.display = '';
+  document.getElementById('userMenu').style.display = 'none';
+  closeUserMenu();
+  showStatus('info', '👋 You have been signed out successfully.');
 }
 
-// ── Set logged-in UI state ──────────────────────────────
-function setLoggedInUI() {
-  const loginBtn    = document.getElementById('openLogin');
-  const registerBtn = document.getElementById('openRegister');
-  loginBtn.textContent = '✓ Logged in';
-  registerBtn.textContent = '🚪 Logout';
-  registerBtn.style.display = '';
-  registerBtn.style.background = 'transparent';
-  loginBtn.onclick    = handleLogout;
-  registerBtn.onclick = handleLogout;
+// ── Set logged-in UI state ───────────────────────────────
+function setLoggedInUI(userData) {
+  // Hide login/signup buttons
+  document.getElementById('authButtons').style.display = 'none';
+  // Show user menu
+  const userMenu = document.getElementById('userMenu');
+  userMenu.style.display = '';
+
+  // Set user info
+  const name     = userData?.username || userData?.email?.split('@')[0] || 'User';
+  const email    = userData?.email || '';
+  const initial  = name.charAt(0).toUpperCase();
+
+  document.getElementById('userAvatar').textContent      = initial;
+  document.getElementById('userDisplayName').textContent = name;
+  document.getElementById('dropdownName').textContent    = name;
+  document.getElementById('dropdownEmail').textContent   = email;
+
+  // Save user data
+  if (userData) localStorage.setItem('smf_user', JSON.stringify(userData));
 }
 
 // ── LOGIN ───────────────────────────────────────────────
@@ -1126,8 +1140,10 @@ document.getElementById('loginSubmit').addEventListener('click', async () => {
     authToken = data.access_token;
     localStorage.setItem('smf_token', authToken);
     authModal.classList.remove('show');
-    setLoggedInUI();
-    showStatus('success', '✅ Logged in successfully!');
+    // Fetch user profile to get username/email
+    const userData = { email: email, username: email.split('@')[0] };
+    setLoggedInUI(userData);
+    showStatus('success', '✅ Welcome back!');
   } catch (e) {
     alert('Login error: ' + e.message);
   }
@@ -1209,7 +1225,11 @@ document.getElementById('regPassword').addEventListener('input', function() {
 //  INIT
 // ══════════════════════════════════════════════════════════
 // Check if already logged in from previous session
-if (authToken) { setLoggedInUI(); }
+if (authToken) {
+  const savedUser = localStorage.getItem('smf_user');
+  const userData  = savedUser ? JSON.parse(savedUser) : null;
+  setLoggedInUI(userData);
+}
 renderHistory();
 </script>
 </body>
