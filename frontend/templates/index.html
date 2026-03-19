@@ -461,6 +461,147 @@ footer a:hover{color:var(--amber);}
   h1{letter-spacing:-1px;}
   .modal{padding:24px;}
 }
+
+/* ══════════════════════════════════════════════════════════
+   DOWNLOADS PANEL
+══════════════════════════════════════════════════════════ */
+.dl-panel-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.6);
+  backdrop-filter:blur(4px);z-index:2000;
+  opacity:0;visibility:hidden;transition:all 0.3s;
+}
+.dl-panel-overlay.open{opacity:1;visibility:visible;}
+.dl-panel{
+  position:fixed;top:0;right:0;bottom:0;width:100%;max-width:560px;
+  background:var(--bg2);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform 0.35s cubic-bezier(0.4,0,0.2,1);
+  z-index:2001;
+}
+.dl-panel-overlay.open .dl-panel{transform:translateX(0);}
+.dl-panel-head{
+  padding:24px 24px 0;border-bottom:1px solid var(--border);
+  padding-bottom:16px;
+}
+.dl-panel-title{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:16px;
+}
+.dl-panel-title h2{font-size:20px;font-weight:800;letter-spacing:-0.5px;}
+.dl-panel-close{
+  width:36px;height:36px;border-radius:10px;
+  border:1px solid var(--border);background:var(--surface);
+  color:var(--text-2);cursor:pointer;display:grid;place-items:center;
+  font-size:16px;transition:all 0.2s;
+}
+.dl-panel-close:hover{border-color:var(--red);color:var(--red);}
+.dl-search{
+  position:relative;margin-bottom:14px;
+}
+.dl-search-input{
+  width:100%;padding:10px 14px 10px 38px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;color:var(--text);font-size:13px;
+  font-family:'Cabinet Grotesk',sans-serif;outline:none;
+  transition:border-color 0.2s;
+}
+.dl-search-input:focus{border-color:var(--amber);}
+.dl-search-icon{
+  position:absolute;left:12px;top:50%;transform:translateY(-50%);
+  color:var(--text-3);font-size:14px;pointer-events:none;
+}
+.dl-filters{display:flex;gap:6px;flex-wrap:wrap;padding-bottom:4px;}
+.dl-filter-btn{
+  padding:5px 12px;border-radius:100px;font-size:12px;font-weight:600;
+  border:1px solid var(--border);background:var(--surface);
+  color:var(--text-2);cursor:pointer;transition:all 0.2s;
+  font-family:'Cabinet Grotesk',sans-serif;white-space:nowrap;
+}
+.dl-filter-btn:hover{border-color:var(--amber);color:var(--amber);}
+.dl-filter-btn.active{
+  background:var(--amber);border-color:var(--amber);color:#0c0c0f;
+}
+.dl-panel-body{
+  flex:1;overflow-y:auto;padding:16px 24px;
+  scrollbar-width:thin;scrollbar-color:var(--border) transparent;
+}
+.dl-stats{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+  margin-bottom:20px;
+}
+.dl-stat{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:14px;text-align:center;
+}
+.dl-stat-num{font-size:22px;font-weight:800;color:var(--amber);}
+.dl-stat-label{font-size:11px;color:var(--text-2);margin-top:2px;}
+.dl-section-title{
+  font-size:11px;font-weight:700;color:var(--text-3);
+  text-transform:uppercase;letter-spacing:1px;
+  margin-bottom:10px;margin-top:4px;
+}
+.dl-item{
+  display:flex;align-items:center;gap:12px;
+  padding:12px;border-radius:12px;
+  border:1px solid var(--border);background:var(--surface);
+  margin-bottom:8px;transition:all 0.2s;cursor:pointer;
+}
+.dl-item:hover{border-color:var(--border-hi);background:var(--card);}
+.dl-item-icon{
+  width:42px;height:42px;border-radius:10px;
+  background:var(--card);border:1px solid var(--border);
+  display:grid;place-items:center;font-size:20px;flex-shrink:0;
+}
+.dl-item-info{flex:1;min-width:0;}
+.dl-item-title{
+  font-size:13px;font-weight:600;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  margin-bottom:3px;
+}
+.dl-item-meta{display:flex;align-items:center;gap:8px;}
+.dl-item-platform{
+  font-size:11px;font-weight:600;color:var(--amber);
+  background:var(--amber-dim);padding:2px 8px;border-radius:100px;
+}
+.dl-item-time{font-size:11px;color:var(--text-3);}
+.dl-item-size{font-size:11px;color:var(--text-3);}
+.dl-item-badge{
+  font-size:10px;font-weight:700;padding:3px 8px;border-radius:100px;
+  border:1px solid;flex-shrink:0;
+}
+.dl-item-badge.video{color:#38bdf8;border-color:rgba(56,189,248,0.3);background:rgba(56,189,248,0.08);}
+.dl-item-badge.audio{color:#a78bfa;border-color:rgba(167,139,250,0.3);background:rgba(167,139,250,0.08);}
+.dl-item-badge.image{color:#34d399;border-color:rgba(52,211,153,0.3);background:rgba(52,211,153,0.08);}
+.dl-item-badge.document{color:#fb923c;border-color:rgba(251,146,60,0.3);background:rgba(251,146,60,0.08);}
+.dl-item-refetch{
+  width:32px;height:32px;border-radius:8px;flex-shrink:0;
+  border:1px solid var(--border);background:transparent;
+  color:var(--text-2);cursor:pointer;display:grid;place-items:center;
+  font-size:14px;transition:all 0.2s;
+}
+.dl-item-refetch:hover{border-color:var(--amber);color:var(--amber);}
+.dl-empty{
+  text-align:center;padding:60px 20px;color:var(--text-3);
+}
+.dl-empty-icon{font-size:48px;margin-bottom:16px;opacity:0.5;}
+.dl-empty-title{font-size:16px;font-weight:700;color:var(--text-2);margin-bottom:8px;}
+.dl-empty-sub{font-size:13px;line-height:1.6;}
+.dl-panel-foot{
+  padding:16px 24px;border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.dl-clear-btn{
+  font-size:12px;font-weight:600;color:var(--text-3);
+  background:none;border:none;cursor:pointer;
+  font-family:'Cabinet Grotesk',sans-serif;
+  transition:color 0.2s;padding:0;
+}
+.dl-clear-btn:hover{color:var(--red);}
+.dl-count-text{font-size:12px;color:var(--text-3);}
+@media(max-width:580px){
+  .dl-panel{max-width:100%;}
+  .dl-stats{grid-template-columns:repeat(3,1fr);}
+}
 </style>
 </head>
 <body>
@@ -496,7 +637,7 @@ footer a:hover{color:var(--amber);}
             <div class="user-info-name" id="dropdownName">User</div>
             <div class="user-info-email" id="dropdownEmail"></div>
           </div>
-          <button class="dropdown-item" onclick="closeUserMenu()"><span>📥</span> Downloads</button>
+          <button class="dropdown-item" onclick="openDlPanel()"><span>📥</span> Downloads</button>
           <button class="dropdown-item" onclick="closeUserMenu()"><span>⚙️</span> Settings</button>
           <div class="dropdown-divider"></div>
           <button class="dropdown-item danger" onclick="handleLogout()"><span>🚪</span> Sign out</button>
@@ -652,6 +793,45 @@ footer a:hover{color:var(--amber);}
       <div class="modal-switch">Already have one? <a id="switchToLogin">Log in →</a></div>
     </div>
   </div>
+
+<!-- ══════════════════════════════════════════════════════
+     DOWNLOADS PANEL
+══════════════════════════════════════════════════════ -->
+<div class="dl-panel-overlay" id="dlPanelOverlay" onclick="closeDlPanel(event)">
+  <div class="dl-panel" id="dlPanel">
+    <div class="dl-panel-head">
+      <div class="dl-panel-title">
+        <h2>📥 My Downloads</h2>
+        <button class="dl-panel-close" onclick="closeDlPanelBtn()">✕</button>
+      </div>
+      <div class="dl-search">
+        <span class="dl-search-icon">🔍</span>
+        <input class="dl-search-input" id="dlSearchInput" placeholder="Search downloads..." oninput="filterDownloads()"/>
+      </div>
+      <div class="dl-filters" id="dlFilters">
+        <button class="dl-filter-btn active" data-filter="all" onclick="setDlFilter('all',this)">All</button>
+        <button class="dl-filter-btn" data-filter="youtube" onclick="setDlFilter('youtube',this)">▶️ YouTube</button>
+        <button class="dl-filter-btn" data-filter="instagram" onclick="setDlFilter('instagram',this)">📸 Instagram</button>
+        <button class="dl-filter-btn" data-filter="tiktok" onclick="setDlFilter('tiktok',this)">🎵 TikTok</button>
+        <button class="dl-filter-btn" data-filter="video" onclick="setDlFilter('video',this)">🎬 Video</button>
+        <button class="dl-filter-btn" data-filter="image" onclick="setDlFilter('image',this)">🖼️ Image</button>
+        <button class="dl-filter-btn" data-filter="document" onclick="setDlFilter('document',this)">📄 Document</button>
+      </div>
+    </div>
+    <div class="dl-panel-body" id="dlPanelBody">
+      <!-- Stats -->
+      <div class="dl-stats" id="dlStats"></div>
+      <!-- List -->
+      <div class="dl-section-title" id="dlSectionTitle">Recent Downloads</div>
+      <div id="dlItemsList"></div>
+    </div>
+    <div class="dl-panel-foot">
+      <span class="dl-count-text" id="dlCountText">0 downloads</span>
+      <button class="dl-clear-btn" onclick="clearAllDownloads()">🗑️ Clear all history</button>
+    </div>
+  </div>
+</div>
+
 </div>
 
 <script>
@@ -1011,9 +1191,16 @@ async function streamDownload(url, label) {
 // ══════════════════════════════════════════════════════════
 //  HISTORY
 // ══════════════════════════════════════════════════════════
-function addToHistory(url, platform, title) {
-  history.unshift({ url, platform: platform || 'unknown', title: title || url, time: Date.now() });
-  if (history.length > 10) history.pop();
+function addToHistory(url, platform, title, media_type, file_size) {
+  history.unshift({
+    url,
+    platform: platform || 'unknown',
+    title: title || url,
+    media_type: media_type || 'video',
+    file_size: file_size || 0,
+    time: Date.now()
+  });
+  if (history.length > 100) history.pop();
   localStorage.setItem('smf_history', JSON.stringify(history));
   renderHistory();
 }
@@ -1239,6 +1426,185 @@ document.getElementById('regPassword').addEventListener('input', function() {
     hint.innerHTML = '';
   }
 });
+
+
+// ══════════════════════════════════════════════════════════
+//  DOWNLOADS PANEL
+// ══════════════════════════════════════════════════════════
+let dlFilter  = 'all';
+let dlSearch  = '';
+
+const PLATFORM_ICONS = {
+  youtube:'▶️', instagram:'📸', tiktok:'🎵', twitter:'🐦',
+  facebook:'📘', reddit:'🤖', vimeo:'🎬', pinterest:'📌',
+  direct:'🔗', image:'🖼️', video:'🎬', audio:'🎵',
+  document:'📄', webpage:'🌐', unknown:'🔗'
+};
+
+function openDlPanel() {
+  closeUserMenu();
+  document.getElementById('dlPanelOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  renderDlPanel();
+}
+
+function closeDlPanel(e) {
+  if (e && e.target !== document.getElementById('dlPanelOverlay')) return;
+  closeDlPanelBtn();
+}
+
+function closeDlPanelBtn() {
+  document.getElementById('dlPanelOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function setDlFilter(filter, btn) {
+  dlFilter = filter;
+  document.querySelectorAll('.dl-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderDlItems();
+}
+
+function filterDownloads() {
+  dlSearch = document.getElementById('dlSearchInput').value.toLowerCase();
+  renderDlItems();
+}
+
+function clearAllDownloads() {
+  if (!confirm('Clear all download history? This cannot be undone.')) return;
+  history = [];
+  localStorage.setItem('smf_history', '[]');
+  renderDlPanel();
+  renderHistory();
+}
+
+function formatBytes(bytes) {
+  if (!bytes || bytes === 0) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/(1024*1024)).toFixed(1) + ' MB';
+}
+
+function timeAgoFull(ts) {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60)   return 'Just now';
+  if (s < 3600)  return Math.floor(s/60) + ' min ago';
+  if (s < 86400) return Math.floor(s/3600) + ' hr ago';
+  if (s < 604800) return Math.floor(s/86400) + ' days ago';
+  return new Date(ts).toLocaleDateString();
+}
+
+function getMediaBadge(item) {
+  const t = (item.media_type || item.platform || '').toLowerCase();
+  if (t.includes('video') || t.includes('youtube') || t.includes('instagram') || t.includes('tiktok')) return 'video';
+  if (t.includes('audio') || t.includes('mp3')) return 'audio';
+  if (t.includes('image') || t.includes('png') || t.includes('jpg')) return 'image';
+  if (t.includes('document') || t.includes('pdf')) return 'document';
+  return 'video';
+}
+
+function renderDlPanel() {
+  // Stats
+  const total    = history.length;
+  const videos   = history.filter(h => getMediaBadge(h) === 'video').length;
+  const images   = history.filter(h => getMediaBadge(h) === 'image').length;
+  const docs     = history.filter(h => getMediaBadge(h) === 'document').length;
+
+  document.getElementById('dlStats').innerHTML = `
+    <div class="dl-stat">
+      <div class="dl-stat-num">${total}</div>
+      <div class="dl-stat-label">Total</div>
+    </div>
+    <div class="dl-stat">
+      <div class="dl-stat-num">${videos}</div>
+      <div class="dl-stat-label">Videos</div>
+    </div>
+    <div class="dl-stat">
+      <div class="dl-stat-num">${images + docs}</div>
+      <div class="dl-stat-label">Files</div>
+    </div>
+  `;
+
+  renderDlItems();
+}
+
+function renderDlItems() {
+  const list    = document.getElementById('dlItemsList');
+  const counter = document.getElementById('dlCountText');
+  const section = document.getElementById('dlSectionTitle');
+
+  // Filter items
+  let items = [...history];
+
+  // Apply platform/type filter
+  if (dlFilter !== 'all') {
+    items = items.filter(h => {
+      const p = (h.platform || '').toLowerCase();
+      const t = (h.media_type || '').toLowerCase();
+      if (dlFilter === 'video')    return getMediaBadge(h) === 'video';
+      if (dlFilter === 'image')    return getMediaBadge(h) === 'image';
+      if (dlFilter === 'document') return getMediaBadge(h) === 'document';
+      return p.includes(dlFilter);
+    });
+  }
+
+  // Apply search
+  if (dlSearch) {
+    items = items.filter(h =>
+      (h.title || h.url || '').toLowerCase().includes(dlSearch) ||
+      (h.platform || '').toLowerCase().includes(dlSearch)
+    );
+  }
+
+  counter.textContent = `${items.length} download${items.length !== 1 ? 's' : ''}`;
+  section.textContent = dlSearch ? `Search results (${items.length})` :
+                        dlFilter !== 'all' ? `${dlFilter.charAt(0).toUpperCase()+dlFilter.slice(1)} downloads` :
+                        'Recent Downloads';
+
+  if (items.length === 0) {
+    list.innerHTML = `
+      <div class="dl-empty">
+        <div class="dl-empty-icon">📭</div>
+        <div class="dl-empty-title">${dlSearch ? 'No results found' : 'No downloads yet'}</div>
+        <div class="dl-empty-sub">${dlSearch ? 'Try a different search term' : 'Start downloading media and your history will appear here.'}</div>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = items.map((h, i) => {
+    const platform  = (h.platform || 'unknown').toLowerCase();
+    const icon      = PLATFORM_ICONS[platform] || PLATFORM_ICONS[getMediaBadge(h)] || '🔗';
+    const badge     = getMediaBadge(h);
+    const title     = h.title || h.url?.split('/').pop() || 'Unknown';
+    const timeStr   = timeAgoFull(h.time);
+    const sizeStr   = formatBytes(h.file_size);
+    const shortUrl  = (h.url || '').replace(/^https?:\/\/(www\.)?/, '').substring(0, 40);
+
+    return `
+    <div class="dl-item" onclick="reFetchFromPanel('${h.url}')">
+      <div class="dl-item-icon">${icon}</div>
+      <div class="dl-item-info">
+        <div class="dl-item-title" title="${title}">${title}</div>
+        <div class="dl-item-meta">
+          <span class="dl-item-platform">${platform}</span>
+          <span class="dl-item-time">${timeStr}</span>
+          ${sizeStr ? `<span class="dl-item-size">${sizeStr}</span>` : ''}
+        </div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${shortUrl}</div>
+      </div>
+      <span class="dl-item-badge ${badge}">${badge.toUpperCase()}</span>
+      <button class="dl-item-refetch" title="Re-fetch this URL" onclick="event.stopPropagation();reFetchFromPanel('${h.url}')">↩</button>
+    </div>`;
+  }).join('');
+}
+
+function reFetchFromPanel(url) {
+  closeDlPanelBtn();
+  urlInput.value = url;
+  urlInput.dispatchEvent(new Event('input'));
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  setTimeout(() => analyzeBtn.click(), 300);
+}
 
 // ══════════════════════════════════════════════════════════
 //  INIT
