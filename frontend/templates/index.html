@@ -802,14 +802,14 @@ footer a:hover{color:var(--amber);}
     <div class="dl-panel-head">
       <div class="dl-panel-title">
         <h2>📥 My Downloads</h2>
-        <button class="dl-panel-close" onclick="closeDlPanelBtn()">✕</button>
+        <button class="dl-panel-close" onclick="event.stopPropagation();closeDlPanelBtn()">✕</button>
       </div>
       <div class="dl-search">
         <span class="dl-search-icon">🔍</span>
         <input class="dl-search-input" id="dlSearchInput" placeholder="Search downloads..." oninput="filterDownloads()"/>
       </div>
       <div class="dl-filters" id="dlFilters">
-        <button class="dl-filter-btn active" data-filter="all" onclick="setDlFilter('all',this)">All</button>
+        <button class="dl-filter-btn active" data-filter="all" onclick="event.stopPropagation();setDlFilter('all',this)">All</button>
         <button class="dl-filter-btn" data-filter="youtube" onclick="setDlFilter('youtube',this)">▶️ YouTube</button>
         <button class="dl-filter-btn" data-filter="instagram" onclick="setDlFilter('instagram',this)">📸 Instagram</button>
         <button class="dl-filter-btn" data-filter="tiktok" onclick="setDlFilter('tiktok',this)">🎵 TikTok</button>
@@ -845,16 +845,18 @@ let isProcessing = false;
 
 // ── Per-user history key ─────────────────────────────────
 function getHistoryKey() {
+  // Only return user-specific key if actually logged in
+  if (!authToken) return null; // Not logged in — no history
   const user = localStorage.getItem('smf_user');
   if (user) {
     try {
       const u = JSON.parse(user);
-      return 'smf_history_' + (u.username || u.email || 'guest');
+      return 'smf_history_' + (u.username || u.email || 'guest').replace(/[^a-z0-9]/gi,'_');
     } catch(e) {}
   }
-  return 'smf_history_guest';
+  return 'smf_history_user';
 }
-let history = JSON.parse(localStorage.getItem(getHistoryKey()) || '[]');
+let history = authToken ? JSON.parse(localStorage.getItem(getHistoryKey()) || '[]') : [];
 
 // ══════════════════════════════════════════════════════════
 //  ELEMENT REFS
@@ -1204,21 +1206,25 @@ async function streamDownload(url, label) {
 //  HISTORY
 // ══════════════════════════════════════════════════════════
 function addToHistory(url, platform, title, media_type, file_size) {
-  history.unshift({
+  const entry = {
     url,
     platform: platform || 'unknown',
     title: title || url,
     media_type: media_type || 'video',
     file_size: file_size || 0,
     time: Date.now()
-  });
+  };
+  history.unshift(entry);
   if (history.length > 100) history.pop();
-  localStorage.setItem(getHistoryKey(), JSON.stringify(history));
+
+  // Only save if user is logged in
+  const key = getHistoryKey();
+  if (key) localStorage.setItem(key, JSON.stringify(history));
   renderHistory();
 }
 
 function renderHistory() {
-  if (!history.length) { historySection.style.display = 'none'; return; }
+  if (!authToken || !history.length) { historySection.style.display = 'none'; return; }
   historySection.style.display = 'block';
   historyList.innerHTML = '';
   const ICONS = { youtube:'▶️', instagram:'📸', tiktok:'🎵', twitter:'🐦', facebook:'📘', reddit:'🤖', vimeo:'🎬', pinterest:'📌', direct:'🖼️', image:'🖼️', video:'🎬', audio:'🎵' };
@@ -1282,10 +1288,19 @@ const registerForm = document.getElementById('registerForm');
 document.getElementById('openLogin').addEventListener('click', () => {
   loginForm.style.display = ''; registerForm.style.display = 'none';
   authModal.classList.add('show');
+  // Clear previous credentials
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPassword').value = '';
 });
 document.getElementById('openRegister').addEventListener('click', () => {
   loginForm.style.display = 'none'; registerForm.style.display = '';
   authModal.classList.add('show');
+  // Clear register form
+  document.getElementById('regEmail').value = '';
+  document.getElementById('regUsername').value = '';
+  document.getElementById('regPassword').value = '';
+  const hint = document.getElementById('passwordHint');
+  if (hint) hint.innerHTML = '';
 });
 document.getElementById('closeModal').addEventListener('click', () => authModal.classList.remove('show'));
 authModal.addEventListener('click', e => { if (e.target === authModal) authModal.classList.remove('show'); });
@@ -1322,13 +1337,31 @@ function handleLogout() {
   authToken = null;
   localStorage.removeItem('smf_token');
   localStorage.removeItem('smf_user');
+
   // Show logged-out buttons
   document.getElementById('authButtons').style.display = '';
   document.getElementById('userMenu').style.display = 'none';
   closeUserMenu();
-  // Clear history display on logout
+
+  // Clear result card
+  const rc = document.getElementById('resultCard');
+  if (rc) rc.classList.remove('show');
+
+  // Clear URL input
+  if (urlInput) { urlInput.value = ''; urlInput.dispatchEvent(new Event('input')); }
+
+  // Clear status message
+  const sm = document.getElementById('statusMsg');
+  if (sm) { sm.style.display = 'none'; sm.textContent = ''; }
+
+  // Clear progress
+  const pw = document.getElementById('progressWrap');
+  if (pw) pw.style.display = 'none';
+
+  // Clear history from display (keep stored data for when they login again)
   history = [];
-  renderHistory();
+  historySection.style.display = 'none';
+
   showStatus('info', '👋 You have been signed out successfully.');
 }
 
@@ -1353,10 +1386,11 @@ function setLoggedInUI(userData) {
   // Save user data and reload history for this user
   if (userData) {
     localStorage.setItem('smf_user', JSON.stringify(userData));
-    // Reload history for this specific user
-    history = JSON.parse(localStorage.getItem(getHistoryKey()) || '[]');
-    renderHistory();
   }
+  // Reload history for this specific user (after token and user data are set)
+  const hKey = getHistoryKey();
+  history = hKey ? JSON.parse(localStorage.getItem(hKey) || '[]') : [];
+  renderHistory();
 }
 
 // ── LOGIN ───────────────────────────────────────────────
@@ -1474,11 +1508,15 @@ const PLATFORM_ICONS = {
 
 function openDlPanel() {
   closeUserMenu();
-  const overlay = document.getElementById('dlPanelOverlay');
-  const panel   = document.getElementById('dlPanel');
-  overlay.classList.add('open');
-  // Don't lock body scroll — let panel scroll independently
-  renderDlPanel();
+  // Use setTimeout so click event finishes bubbling before panel opens
+  // This prevents the document click handler from immediately closing it
+  setTimeout(() => {
+    const overlay = document.getElementById('dlPanelOverlay');
+    if (overlay) {
+      overlay.classList.add('open');
+      renderDlPanel();
+    }
+  }, 50);
 }
 
 function closeDlPanel(e) {
