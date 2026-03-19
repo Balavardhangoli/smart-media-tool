@@ -481,8 +481,27 @@ footer a:hover{color:var(--amber);}
     </div>
     <div class="header-actions">
       <button class="theme-toggle" id="themeToggle" title="Toggle theme">🌙</button>
-      <button class="auth-btn" id="openLogin">Log in</button>
-      <button class="auth-btn primary" id="openRegister">Sign up</button>
+      <div id="authButtons" style="display:flex;gap:8px;">
+        <button class="auth-btn" id="openLogin">Log in</button>
+        <button class="auth-btn primary" id="openRegister">Sign up</button>
+      </div>
+      <div class="user-menu" id="userMenu" style="display:none">
+        <button class="user-btn" id="userMenuBtn" onclick="toggleUserMenu()">
+          <div class="user-avatar" id="userAvatar">U</div>
+          <span id="userDisplayName">User</span>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 8L1 3h10z"/></svg>
+        </button>
+        <div class="user-dropdown" id="userDropdown">
+          <div class="user-info">
+            <div class="user-info-name" id="dropdownName">User</div>
+            <div class="user-info-email" id="dropdownEmail"></div>
+          </div>
+          <button class="dropdown-item" onclick="closeUserMenu()"><span>📥</span> Downloads</button>
+          <button class="dropdown-item" onclick="closeUserMenu()"><span>⚙️</span> Settings</button>
+          <div class="dropdown-divider"></div>
+          <button class="dropdown-item danger" onclick="handleLogout()"><span>🚪</span> Sign out</button>
+        </div>
+      </div>
     </div>
   </header>
 
