@@ -468,9 +468,9 @@ footer a:hover{color:var(--amber);}
 .dl-panel-overlay{
   position:fixed;inset:0;background:rgba(0,0,0,0.6);
   backdrop-filter:blur(4px);z-index:2000;
-  opacity:0;visibility:hidden;transition:all 0.3s;
+  opacity:0;visibility:hidden;pointer-events:none;transition:all 0.3s;
 }
-.dl-panel-overlay.open{opacity:1;visibility:visible;}
+.dl-panel-overlay.open{opacity:1;visibility:visible;pointer-events:all;}
 .dl-panel{
   position:fixed;top:0;right:0;bottom:0;width:100%;max-width:560px;
   background:var(--bg2);border-left:1px solid var(--border);
@@ -1507,8 +1507,19 @@ const PLATFORM_ICONS = {
 let _dlPanelJustOpened = false;
 
 function openDlPanel() {
-  event.stopPropagation(); // Stop click from bubbling to document
+  event.stopPropagation();
   closeUserMenu();
+  // Close auth modal if open
+  const authModal = document.getElementById('authModal');
+  if (authModal) authModal.classList.remove('show');
+  // Only open if user is logged in
+  if (!authToken) {
+    // Not logged in — show login modal instead
+    document.getElementById('loginForm').style.display = '';
+    document.getElementById('registerForm').style.display = 'none';
+    authModal.classList.add('show');
+    return;
+  }
   const overlay = document.getElementById('dlPanelOverlay');
   if (overlay) {
     overlay.classList.add('open');
