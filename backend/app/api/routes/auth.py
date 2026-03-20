@@ -296,3 +296,40 @@ async def revoke_api_key(
         raise HTTPException(status_code=404, detail="API key not found.")
     key.is_active = False
     await db.commit()
+
+# ──────────────────────────────────────────────────────────
+#  CHANGE PASSWORD (while logged in)
+# ──────────────────────────────────────────────────────────
+@router.post("/change-password")
+async def change_password(
+    body:         dict,
+    current_user: User = Depends(get_current_user),
+    db:           AsyncSession = Depends(get_db),
+):
+    current = body.get("current_password", "")
+    new_pw  = body.get("new_password", "")
+
+    if not verify_password(current, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+    if len(new_pw) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
+    if not any(c.isupper() for c in new_pw):
+        raise HTTPException(status_code=400, detail="Password must contain at least 1 uppercase letter.")
+    if not any(c.isdigit() for c in new_pw):
+        raise HTTPException(status_code=400, detail="Password must contain at least 1 number.")
+
+    current_user.hashed_password = hash_password(new_pw)
+    await db.commit()
+    return {"message": "Password changed successfully."}
+
+
+# ──────────────────────────────────────────────────────────
+#  DELETE ACCOUNT
+# ──────────────────────────────────────────────────────────
+@router.delete("/delete-account", status_code=204)
+async def delete_account(
+    current_user: User = Depends(get_current_user),
+    db:           AsyncSession = Depends(get_db),
+):
+    await db.delete(current_user)
+    await db.commit()
