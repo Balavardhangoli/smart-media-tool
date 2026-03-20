@@ -136,14 +136,14 @@ if frontend_dir.exists():
     )
     templates = Jinja2Templates(directory=str(frontend_dir / "templates"))
 
-@app.get("/")
-async def serve_index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    @app.get("/", include_in_schema=False)
+    async def serve_index(request: Request):
+        return templates.TemplateResponse("index.html", {"request": request})
 
-@app.get("/downloads")                  ← starts at column 0, no indent
-async def serve_downloads(request: Request):
-    return templates.TemplateResponse("downloads.html", {"request": request})
+    @app.get("/downloads", include_in_schema=False)
+    async def serve_downloads(request: Request):
+        return templates.TemplateResponse("downloads.html", {"request": request})
 
-@app.get("/settings")                   ← starts at column 0, no indent
-async def serve_settings(request: Request):
-    return templates.TemplateResponse("settings.html", {"request": request})
+    @app.get("/settings", include_in_schema=False)
+    async def serve_settings(request: Request):
+        return templates.TemplateResponse("settings.html", {"request": request})
