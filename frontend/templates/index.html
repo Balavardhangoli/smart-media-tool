@@ -637,7 +637,7 @@ footer a:hover{color:var(--amber);}
             <div class="user-info-name" id="dropdownName">User</div>
             <div class="user-info-email" id="dropdownEmail"></div>
           </div>
-          <button class="dropdown-item" onclick="event.stopPropagation();openDlPanel()"><span>📥</span> Downloads</button>
+          <button class="dropdown-item" onclick="openDlPanel(event)"><span>📥</span> Downloads</button>
           <button class="dropdown-item" onclick="closeUserMenu()"><span>⚙️</span> Settings</button>
           <div class="dropdown-divider"></div>
           <button class="dropdown-item danger" onclick="handleLogout()"><span>🚪</span> Sign out</button>
@@ -1320,11 +1320,13 @@ document.addEventListener('click', e => {
   if (menu && !menu.contains(e.target)) closeUserMenu();
 });
 
-// Separate listener for closing downloads panel overlay
-document.getElementById('dlPanelOverlay').addEventListener('click', function(e) {
-  // Only close if clicking the dark background — not inside the panel
-  if (e.target === this) {
-    closeDlPanelBtn();
+// Close panel when clicking dark overlay background
+window.addEventListener('load', function() {
+  const overlay = document.getElementById('dlPanelOverlay');
+  if (overlay) {
+    overlay.addEventListener('click', function(e) {
+      if (e.target === this) closeDlPanelBtn();
+    });
   }
 });
 
@@ -1506,20 +1508,14 @@ const PLATFORM_ICONS = {
 
 let _dlPanelJustOpened = false;
 
-function openDlPanel() {
-  event.stopPropagation();
+function openDlPanel(e) {
+  if (e) e.stopPropagation();
+
   closeUserMenu();
-  // Close auth modal if open
-  const authModal = document.getElementById('authModal');
-  if (authModal) authModal.classList.remove('show');
+
   // Only open if user is logged in
-  if (!authToken) {
-    // Not logged in — show login modal instead
-    document.getElementById('loginForm').style.display = '';
-    document.getElementById('registerForm').style.display = 'none';
-    authModal.classList.add('show');
-    return;
-  }
+  if (!authToken) return;
+
   const overlay = document.getElementById('dlPanelOverlay');
   if (overlay) {
     overlay.classList.add('open');
