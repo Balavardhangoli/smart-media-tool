@@ -440,6 +440,361 @@ h1 em{
 }
 .modal-close:hover{border-color:var(--red);color:var(--red);}
 .modal{position:relative;}
+/* ══════════════════════════════════════════════════════════
+   SETTINGS PANEL
+══════════════════════════════════════════════════════════ */
+.settings-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.6);
+  backdrop-filter:blur(4px);z-index:2000;
+  opacity:0;visibility:hidden;transition:all 0.3s;
+}
+.settings-overlay.open{opacity:1;visibility:visible;}
+.settings-panel{
+  position:fixed;top:0;right:0;bottom:0;width:100%;max-width:520px;
+  background:var(--bg2);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform 0.35s cubic-bezier(0.4,0,0.2,1);
+  z-index:2001;
+}
+.settings-overlay.open .settings-panel{transform:translateX(0);}
+.settings-head{
+  padding:20px 24px 0;border-bottom:1px solid var(--border);
+}
+.settings-title-row{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:16px;
+}
+.settings-title-row h2{font-size:20px;font-weight:800;letter-spacing:-0.5px;}
+.settings-close{
+  width:36px;height:36px;border-radius:10px;
+  border:1px solid var(--border);background:var(--surface);
+  color:var(--text-2);cursor:pointer;display:grid;place-items:center;
+  font-size:16px;transition:all 0.2s;
+}
+.settings-close:hover{border-color:var(--red);color:var(--red);}
+.settings-tabs{display:flex;gap:4px;overflow-x:auto;padding-bottom:0;}
+.settings-tab{
+  padding:9px 14px;border-radius:10px 10px 0 0;font-size:12px;font-weight:600;
+  border:none;background:none;color:var(--text-2);cursor:pointer;
+  font-family:'Cabinet Grotesk',sans-serif;white-space:nowrap;
+  transition:all 0.2s;border-bottom:2px solid transparent;
+}
+.settings-tab:hover{color:var(--text);}
+.settings-tab.active{color:var(--amber);border-bottom-color:var(--amber);}
+.settings-body{
+  flex:1;overflow-y:auto;padding:24px;
+  scrollbar-width:thin;scrollbar-color:var(--border) transparent;
+}
+.settings-section{display:none;}
+.settings-section.active{display:block;}
+.settings-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:14px;padding:20px;margin-bottom:16px;
+}
+.settings-card-title{
+  font-size:12px;font-weight:700;color:var(--text-3);
+  text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;
+}
+.settings-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 0;border-bottom:1px solid var(--border);
+}
+.settings-row:last-child{border-bottom:none;padding-bottom:0;}
+.settings-row:first-of-type{padding-top:0;}
+.settings-label{font-size:13px;font-weight:600;color:var(--text);}
+.settings-value{font-size:13px;color:var(--text-2);}
+.settings-edit-btn{
+  padding:5px 12px;border-radius:8px;font-size:12px;font-weight:600;
+  border:1px solid var(--border);background:var(--surface);
+  color:var(--text-2);cursor:pointer;transition:all 0.2s;
+  font-family:'Cabinet Grotesk',sans-serif;
+}
+.settings-edit-btn:hover{border-color:var(--amber);color:var(--amber);}
+.settings-input{
+  width:100%;padding:10px 14px;background:var(--card);
+  border:1px solid var(--border);border-radius:10px;
+  color:var(--text);font-size:13px;outline:none;
+  font-family:'Cabinet Grotesk',sans-serif;transition:border-color 0.2s;
+  margin-top:8px;
+}
+.settings-input:focus{border-color:var(--amber);}
+.settings-save-btn{
+  width:100%;padding:11px;border-radius:10px;font-size:13px;font-weight:700;
+  background:var(--amber);border:none;color:#0c0c0f;cursor:pointer;
+  font-family:'Cabinet Grotesk',sans-serif;margin-top:12px;transition:all 0.2s;
+}
+.settings-save-btn:hover{background:#f59e0b;}
+.settings-save-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.avatar-grid{
+  display:flex;gap:10px;flex-wrap:wrap;margin:12px 0;
+}
+.avatar-color{
+  width:36px;height:36px;border-radius:10px;cursor:pointer;
+  display:grid;place-items:center;font-size:14px;font-weight:800;
+  color:#0c0c0f;border:3px solid transparent;transition:all 0.2s;
+}
+.avatar-color.selected{border-color:white;transform:scale(1.1);}
+.toggle-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 0;border-bottom:1px solid var(--border);
+}
+.toggle-row:last-child{border-bottom:none;}
+.toggle-info{}
+.toggle-label{font-size:13px;font-weight:600;color:var(--text);}
+.toggle-sub{font-size:11px;color:var(--text-3);margin-top:2px;}
+.toggle{
+  position:relative;width:44px;height:24px;flex-shrink:0;
+}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle-slider{
+  position:absolute;inset:0;background:var(--border);
+  border-radius:100px;cursor:pointer;transition:0.3s;
+}
+.toggle-slider:before{
+  content:'';position:absolute;width:18px;height:18px;
+  left:3px;bottom:3px;background:white;border-radius:50%;
+  transition:0.3s;
+}
+.toggle input:checked + .toggle-slider{background:var(--amber);}
+.toggle input:checked + .toggle-slider:before{transform:translateX(20px);}
+.select-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 0;border-bottom:1px solid var(--border);
+}
+.select-row:last-child{border-bottom:none;}
+.settings-select{
+  padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;
+  border:1px solid var(--border);background:var(--surface);
+  color:var(--text);cursor:pointer;outline:none;
+  font-family:'Cabinet Grotesk',sans-serif;
+}
+.danger-btn{
+  width:100%;padding:11px;border-radius:10px;font-size:13px;font-weight:700;
+  background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);
+  color:var(--red);cursor:pointer;font-family:'Cabinet Grotesk',sans-serif;
+  margin-top:8px;transition:all 0.2s;
+}
+.danger-btn:hover{background:rgba(248,113,113,0.2);}
+.accent-colors{display:flex;gap:8px;margin-top:8px;}
+.accent-dot{
+  width:28px;height:28px;border-radius:50%;cursor:pointer;
+  border:3px solid transparent;transition:all 0.2s;
+}
+.accent-dot.selected{border-color:white;transform:scale(1.15);}
+.settings-foot{
+  padding:16px 24px;border-top:1px solid var(--border);
+  display:flex;justify-content:flex-end;
+}
+.settings-version{font-size:11px;color:var(--text-3);}
+
+
+/* ══════════════════════════════════════════════════════════
+   SETTINGS PANEL
+══════════════════════════════════════════════════════════ */
+.settings-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.6);
+  backdrop-filter:blur(4px);z-index:2000;
+  opacity:0;visibility:hidden;transition:all 0.3s;
+}
+.settings-overlay.open{opacity:1;visibility:visible;}
+.settings-panel{
+  position:fixed;top:0;right:0;bottom:0;width:100%;max-width:560px;
+  background:var(--bg2);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform 0.35s cubic-bezier(0.4,0,0.2,1);
+  z-index:2001;
+}
+.settings-overlay.open .settings-panel{transform:translateX(0);}
+
+/* Head */
+.settings-head{
+  padding:24px 24px 0;
+  border-bottom:1px solid var(--border);
+}
+.settings-head-top{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:20px;
+}
+.settings-head-top h2{font-size:20px;font-weight:800;letter-spacing:-0.5px;}
+.settings-close{
+  width:36px;height:36px;border-radius:10px;
+  border:1px solid var(--border);background:var(--surface);
+  color:var(--text-2);cursor:pointer;display:grid;place-items:center;
+  font-size:16px;transition:all 0.2s;
+}
+.settings-close:hover{border-color:var(--red);color:var(--red);}
+
+/* Tabs */
+.settings-tabs{
+  display:flex;gap:4px;overflow-x:auto;padding-bottom:0;
+  scrollbar-width:none;
+}
+.settings-tabs::-webkit-scrollbar{display:none;}
+.settings-tab{
+  padding:10px 14px;border-radius:10px 10px 0 0;font-size:12px;font-weight:700;
+  border:none;background:none;color:var(--text-3);cursor:pointer;
+  transition:all 0.2s;white-space:nowrap;border-bottom:2px solid transparent;
+  font-family:'Cabinet Grotesk',sans-serif;
+}
+.settings-tab:hover{color:var(--text);}
+.settings-tab.active{color:var(--amber);border-bottom-color:var(--amber);}
+
+/* Body */
+.settings-body{
+  flex:1;overflow-y:auto;padding:24px;
+  scrollbar-width:thin;scrollbar-color:var(--border) transparent;
+}
+.settings-tab-content{display:none;}
+.settings-tab-content.active{display:block;}
+
+/* Section cards */
+.settings-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:14px;padding:20px;margin-bottom:16px;
+}
+.settings-card-title{
+  font-size:13px;font-weight:700;color:var(--text);
+  margin-bottom:16px;display:flex;align-items:center;gap:8px;
+}
+.settings-card-title span{font-size:16px;}
+
+/* Avatar */
+.avatar-section{
+  display:flex;align-items:center;gap:16px;margin-bottom:20px;
+}
+.avatar-big{
+  width:64px;height:64px;border-radius:16px;
+  display:grid;place-items:center;font-size:28px;font-weight:800;
+  color:#0c0c0f;flex-shrink:0;transition:all 0.2s;cursor:pointer;
+}
+.avatar-info{flex:1;}
+.avatar-name{font-size:18px;font-weight:800;letter-spacing:-0.5px;}
+.avatar-email{font-size:12px;color:var(--text-2);margin-top:2px;}
+.avatar-since{font-size:11px;color:var(--text-3);margin-top:4px;}
+.color-picker{
+  display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;
+}
+.color-dot{
+  width:28px;height:28px;border-radius:8px;cursor:pointer;
+  border:2px solid transparent;transition:all 0.15s;
+}
+.color-dot:hover{transform:scale(1.15);}
+.color-dot.selected{border-color:white;transform:scale(1.15);}
+
+/* Form fields */
+.settings-field{margin-bottom:14px;}
+.settings-label{
+  font-size:11px;font-weight:700;color:var(--text-2);
+  text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.settings-input{
+  width:100%;padding:10px 14px;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:10px;color:var(--text);font-size:13px;
+  font-family:'Cabinet Grotesk',sans-serif;outline:none;
+  transition:border-color 0.2s;
+}
+.settings-input:focus{border-color:var(--amber);}
+.settings-input:disabled{opacity:0.5;cursor:not-allowed;}
+.settings-input-row{display:flex;gap:8px;}
+.settings-input-row .settings-input{flex:1;}
+
+/* Toggle */
+.toggle-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 0;border-bottom:1px solid var(--border);
+}
+.toggle-row:last-child{border-bottom:none;padding-bottom:0;}
+.toggle-info{flex:1;}
+.toggle-title{font-size:13px;font-weight:600;color:var(--text);}
+.toggle-sub{font-size:11px;color:var(--text-3);margin-top:2px;}
+.toggle{
+  position:relative;width:44px;height:24px;flex-shrink:0;
+}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle-slider{
+  position:absolute;inset:0;background:var(--border);
+  border-radius:100px;cursor:pointer;transition:0.3s;
+}
+.toggle-slider:before{
+  content:'';position:absolute;width:18px;height:18px;
+  left:3px;bottom:3px;background:var(--text-2);
+  border-radius:50%;transition:0.3s;
+}
+.toggle input:checked + .toggle-slider{background:var(--amber);}
+.toggle input:checked + .toggle-slider:before{
+  transform:translateX(20px);background:#0c0c0f;
+}
+
+/* Quality/Format selector */
+.option-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+}
+.option-chip{
+  padding:10px;border-radius:10px;text-align:center;
+  border:1px solid var(--border);background:var(--card);
+  cursor:pointer;transition:all 0.15s;font-size:12px;font-weight:600;
+  color:var(--text-2);font-family:'Cabinet Grotesk',sans-serif;
+}
+.option-chip:hover{border-color:var(--amber);color:var(--amber);}
+.option-chip.selected{
+  background:var(--amber-dim);border-color:var(--amber);color:var(--amber);
+}
+
+/* Accent colors */
+.accent-grid{
+  display:grid;grid-template-columns:repeat(6,1fr);gap:8px;
+}
+.accent-chip{
+  height:36px;border-radius:10px;cursor:pointer;
+  border:2px solid transparent;transition:all 0.15s;
+}
+.accent-chip:hover{transform:scale(1.1);}
+.accent-chip.selected{border-color:white;transform:scale(1.1);}
+
+/* Save button */
+.settings-save-btn{
+  width:100%;padding:12px;border-radius:10px;
+  background:var(--amber);border:none;color:#0c0c0f;
+  font-size:14px;font-weight:700;cursor:pointer;
+  font-family:'Cabinet Grotesk',sans-serif;
+  transition:all 0.2s;margin-top:8px;
+}
+.settings-save-btn:hover{background:#f59e0b;}
+.settings-save-btn:active{transform:scale(0.98);}
+
+/* Danger zone */
+.danger-btn{
+  width:100%;padding:12px;border-radius:10px;
+  background:transparent;border:1px solid var(--red);
+  color:var(--red);font-size:13px;font-weight:700;
+  cursor:pointer;font-family:'Cabinet Grotesk',sans-serif;
+  transition:all 0.2s;margin-bottom:10px;
+}
+.danger-btn:hover{background:rgba(248,113,113,0.1);}
+.danger-btn.confirm{background:var(--red);color:white;}
+
+/* Stat chips */
+.stat-chips{display:flex;gap:10px;flex-wrap:wrap;}
+.stat-chip{
+  flex:1;min-width:80px;background:var(--card);border:1px solid var(--border);
+  border-radius:10px;padding:12px;text-align:center;
+}
+.stat-chip-num{font-size:20px;font-weight:800;color:var(--amber);}
+.stat-chip-label{font-size:11px;color:var(--text-3);margin-top:2px;}
+
+/* Password strength in settings */
+.pw-strength-bar{height:3px;border-radius:2px;background:var(--border);margin-top:6px;overflow:hidden;}
+.pw-strength-fill{height:100%;border-radius:2px;transition:all 0.3s;width:0;}
+.pw-strength-text{font-size:11px;margin-top:4px;}
+
+@media(max-width:580px){
+  .settings-panel{max-width:100%;}
+  .option-grid{grid-template-columns:repeat(2,1fr);}
+  .accent-grid{grid-template-columns:repeat(4,1fr);}
+}
+
 /* ── FORGOT PASSWORD ── */
 .forgot-link{
   font-size:12px;color:var(--text-3);text-align:right;
@@ -671,7 +1026,7 @@ footer a:hover{color:var(--amber);}
             <div class="user-info-email" id="dropdownEmail"></div>
           </div>
           <button class="dropdown-item" onclick="openDlPanel(event)"><span>📥</span> Downloads</button>
-          <button class="dropdown-item" onclick="closeUserMenu()"><span>⚙️</span> Settings</button>
+          <button class="dropdown-item" onclick="openSettings(event)"><span>⚙️</span> Settings</button>
           <div class="dropdown-divider"></div>
           <button class="dropdown-item danger" onclick="handleLogout()"><span>🚪</span> Sign out</button>
         </div>
@@ -879,6 +1234,521 @@ footer a:hover{color:var(--amber);}
       <div class="modal-switch">Already have one? <a id="switchToLogin">Log in →</a></div>
     </div>
   </div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     SETTINGS PANEL
+══════════════════════════════════════════════════════ -->
+<div class="settings-overlay" id="settingsOverlay">
+  <div class="settings-panel" id="settingsPanel">
+
+    <!-- Head -->
+    <div class="settings-head">
+      <div class="settings-title-row">
+        <h2>⚙️ Settings</h2>
+        <button class="settings-close" onclick="event.stopPropagation();closeSettings()">✕</button>
+      </div>
+      <div class="settings-tabs">
+        <button class="settings-tab active" onclick="switchTab('profile',this)">👤 Profile</button>
+        <button class="settings-tab" onclick="switchTab('security',this)">🔒 Security</button>
+        <button class="settings-tab" onclick="switchTab('preferences',this)">⬇️ Preferences</button>
+        <button class="settings-tab" onclick="switchTab('appearance',this)">🎨 Appearance</button>
+        <button class="settings-tab" onclick="switchTab('danger',this)">☠️ Danger Zone</button>
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div class="settings-body">
+
+      <!-- ── PROFILE TAB ── -->
+      <div class="settings-section active" id="tab-profile">
+        <!-- Avatar -->
+        <div class="settings-card">
+          <div class="settings-card-title">Avatar Color</div>
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;">
+            <div id="previewAvatar" style="width:56px;height:56px;border-radius:14px;background:#fbbf24;display:grid;place-items:center;font-size:22px;font-weight:800;color:#0c0c0f;">B</div>
+            <div>
+              <div style="font-size:14px;font-weight:700;" id="previewName">Balavardhan</div>
+              <div style="font-size:12px;color:var(--text-2);" id="previewEmail">user@email.com</div>
+            </div>
+          </div>
+          <div class="avatar-grid" id="avatarColors">
+            <div class="avatar-color selected" style="background:#fbbf24" data-color="#fbbf24" onclick="selectAvatarColor(this)">B</div>
+            <div class="avatar-color" style="background:#38bdf8" data-color="#38bdf8" onclick="selectAvatarColor(this)">B</div>
+            <div class="avatar-color" style="background:#34d399" data-color="#34d399" onclick="selectAvatarColor(this)">B</div>
+            <div class="avatar-color" style="background:#f87171" data-color="#f87171" onclick="selectAvatarColor(this)">B</div>
+            <div class="avatar-color" style="background:#a78bfa" data-color="#a78bfa" onclick="selectAvatarColor(this)">B</div>
+            <div class="avatar-color" style="background:#fb923c" data-color="#fb923c" onclick="selectAvatarColor(this)">B</div>
+            <div class="avatar-color" style="background:#e879f9" data-color="#e879f9" onclick="selectAvatarColor(this)">B</div>
+            <div class="avatar-color" style="background:#94a3b8" data-color="#94a3b8" onclick="selectAvatarColor(this)">B</div>
+          </div>
+        </div>
+
+        <!-- Profile Info -->
+        <div class="settings-card">
+          <div class="settings-card-title">Account Info</div>
+          <div class="settings-row">
+            <span class="settings-label">Username</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="settings-value" id="displayUsername">—</span>
+              <button class="settings-edit-btn" onclick="toggleEditField('username')">Edit</button>
+            </div>
+          </div>
+          <div id="editUsername" style="display:none;">
+            <input class="settings-input" id="newUsername" placeholder="Enter new username"/>
+            <button class="settings-save-btn" onclick="saveUsername()">Save Username</button>
+          </div>
+          <div class="settings-row">
+            <span class="settings-label">Email</span>
+            <span class="settings-value" id="displayEmail">—</span>
+          </div>
+          <div class="settings-row">
+            <span class="settings-label">Member since</span>
+            <span class="settings-value" id="displayJoined">—</span>
+          </div>
+          <div class="settings-row">
+            <span class="settings-label">Total downloads</span>
+            <span class="settings-value" id="displayDownloads">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SECURITY TAB ── -->
+      <div class="settings-section" id="tab-security">
+        <div class="settings-card">
+          <div class="settings-card-title">Change Password</div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label">Current password</label>
+            <input class="settings-input" id="currentPass" type="password" placeholder="Enter current password" style="margin-top:6px;"/>
+          </div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label">New password</label>
+            <input class="settings-input" id="secNewPass" type="password" placeholder="Min 8 chars, 1 uppercase, 1 digit" style="margin-top:6px;" oninput="checkSecPasswordStrength(this.value)"/>
+            <div class="strength-bar" style="margin-top:6px;"><div class="strength-fill" id="secStrengthFill"></div></div>
+            <div class="strength-text" id="secStrengthText" style="margin-top:4px;font-size:11px;"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm new password</label>
+            <input class="settings-input" id="secConfirmPass" type="password" placeholder="Repeat new password" style="margin-top:6px;"/>
+          </div>
+          <button class="settings-save-btn" onclick="changePassword()" style="margin-top:16px;">Update Password</button>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-card-title">Session Info</div>
+          <div class="settings-row">
+            <span class="settings-label">Current session</span>
+            <span class="settings-value" style="color:var(--green);">● Active</span>
+          </div>
+          <div class="settings-row">
+            <span class="settings-label">Last login</span>
+            <span class="settings-value" id="lastLogin">Just now</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PREFERENCES TAB ── -->
+      <div class="settings-section" id="tab-preferences">
+        <div class="settings-card">
+          <div class="settings-card-title">Download Defaults</div>
+          <div class="select-row">
+            <div>
+              <div class="toggle-label">Default Quality</div>
+              <div class="toggle-sub">Applied to all downloads</div>
+            </div>
+            <select class="settings-select" id="prefQuality" onchange="savePref('quality',this.value)">
+              <option value="best">Best Available</option>
+              <option value="1080p">1080p HD</option>
+              <option value="720p">720p HD</option>
+              <option value="480p">480p SD</option>
+              <option value="360p">360p</option>
+            </select>
+          </div>
+          <div class="select-row">
+            <div>
+              <div class="toggle-label">Default Format</div>
+              <div class="toggle-sub">Preferred file format</div>
+            </div>
+            <select class="settings-select" id="prefFormat" onchange="savePref('format',this.value)">
+              <option value="auto">Auto</option>
+              <option value="mp4">MP4</option>
+              <option value="webm">WebM</option>
+              <option value="mp3">MP3 (Audio)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-card-title">Behaviour</div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Save download history</div>
+              <div class="toggle-sub">Track your downloaded URLs</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="prefHistory" checked onchange="savePref('history',this.checked)"/>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Show download notifications</div>
+              <div class="toggle-sub">Alert when download completes</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="prefNotify" checked onchange="savePref('notify',this.checked)"/>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Auto-detect platform</div>
+              <div class="toggle-sub">Show platform badge as you type</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="prefAutoDetect" checked onchange="savePref('autoDetect',this.checked)"/>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── APPEARANCE TAB ── -->
+      <div class="settings-section" id="tab-appearance">
+        <div class="settings-card">
+          <div class="settings-card-title">Theme</div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Dark Mode</div>
+              <div class="toggle-sub">Easy on the eyes at night</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="appearTheme" onchange="toggleThemeFromSettings(this.checked)"/>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-card-title">Accent Color</div>
+          <div style="font-size:12px;color:var(--text-2);margin-bottom:10px;">Choose your accent color</div>
+          <div class="accent-colors" id="accentColors">
+            <div class="accent-dot selected" style="background:#fbbf24" data-accent="amber" onclick="setAccent(this,'#fbbf24','#f59e0b')"></div>
+            <div class="accent-dot" style="background:#38bdf8" data-accent="blue" onclick="setAccent(this,'#38bdf8','#0ea5e9')"></div>
+            <div class="accent-dot" style="background:#34d399" data-accent="green" onclick="setAccent(this,'#34d399','#10b981')"></div>
+            <div class="accent-dot" style="background:#a78bfa" data-accent="purple" onclick="setAccent(this,'#a78bfa','#8b5cf6')"></div>
+            <div class="accent-dot" style="background:#fb923c" data-accent="orange" onclick="setAccent(this,'#fb923c','#f97316')"></div>
+            <div class="accent-dot" style="background:#f472b6" data-accent="pink" onclick="setAccent(this,'#f472b6','#ec4899')"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── DANGER ZONE TAB ── -->
+      <div class="settings-section" id="tab-danger">
+        <div class="settings-card">
+          <div class="settings-card-title">Data Management</div>
+          <div style="font-size:13px;color:var(--text-2);margin-bottom:12px;line-height:1.6;">
+            Clear your download history. This cannot be undone.
+          </div>
+          <button class="danger-btn" onclick="clearHistoryFromSettings()">
+            🗑️ Clear All Download History
+          </button>
+        </div>
+
+        <div class="settings-card" style="border-color:rgba(248,113,113,0.2);">
+          <div class="settings-card-title" style="color:var(--red);">Delete Account</div>
+          <div style="font-size:13px;color:var(--text-2);margin-bottom:12px;line-height:1.6;">
+            Permanently delete your account and all data. This action <strong style="color:var(--red);">cannot be undone</strong>.
+          </div>
+          <input class="settings-input" id="deleteConfirmInput" placeholder="Type DELETE to confirm" style="margin-bottom:10px;border-color:rgba(248,113,113,0.3);"/>
+          <button class="danger-btn" onclick="deleteAccount()" style="background:rgba(248,113,113,0.15);">
+            ☠️ Delete My Account
+          </button>
+        </div>
+      </div>
+
+    </div><!-- end body -->
+
+    <div class="settings-foot">
+      <span class="settings-version">Smart Media Fetcher v1.0.0</span>
+    </div>
+
+  </div><!-- end panel -->
+</div><!-- end overlay -->
+
+
+<!-- ══════════════════════════════════════════════════════
+     SETTINGS PANEL
+══════════════════════════════════════════════════════ -->
+<div class="settings-overlay" id="settingsOverlay">
+  <div class="settings-panel" id="settingsPanel">
+
+    <!-- Head -->
+    <div class="settings-head">
+      <div class="settings-head-top">
+        <h2>⚙️ Settings</h2>
+        <button class="settings-close" onclick="event.stopPropagation();closeSettings()">✕</button>
+      </div>
+      <div class="settings-tabs">
+        <button class="settings-tab active" onclick="switchTab('profile',this)">👤 Profile</button>
+        <button class="settings-tab" onclick="switchTab('security',this)">🔒 Security</button>
+        <button class="settings-tab" onclick="switchTab('preferences',this)">⬇️ Preferences</button>
+        <button class="settings-tab" onclick="switchTab('appearance',this)">🎨 Appearance</button>
+        <button class="settings-tab" onclick="switchTab('danger',this)">☠️ Danger Zone</button>
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div class="settings-body">
+
+      <!-- ── TAB: PROFILE ── -->
+      <div class="settings-tab-content active" id="tab-profile">
+
+        <!-- Avatar + Name -->
+        <div class="settings-card">
+          <div class="settings-card-title"><span>👤</span> Profile</div>
+          <div class="avatar-section">
+            <div class="avatar-big" id="settingsAvatar" style="background:#fbbf24;">U</div>
+            <div class="avatar-info">
+              <div class="avatar-name" id="settingsName">User</div>
+              <div class="avatar-email" id="settingsEmail">—</div>
+              <div class="avatar-since" id="settingsSince"></div>
+            </div>
+          </div>
+          <div class="settings-label">Avatar Color</div>
+          <div class="color-picker" id="colorPicker">
+            <div class="color-dot selected" style="background:#fbbf24" data-color="#fbbf24" onclick="setAvatarColor('#fbbf24',this)"></div>
+            <div class="color-dot" style="background:#38bdf8" data-color="#38bdf8" onclick="setAvatarColor('#38bdf8',this)"></div>
+            <div class="color-dot" style="background:#34d399" data-color="#34d399" onclick="setAvatarColor('#34d399',this)"></div>
+            <div class="color-dot" style="background:#f87171" data-color="#f87171" onclick="setAvatarColor('#f87171',this)"></div>
+            <div class="color-dot" style="background:#a78bfa" data-color="#a78bfa" onclick="setAvatarColor('#a78bfa',this)"></div>
+            <div class="color-dot" style="background:#fb923c" data-color="#fb923c" onclick="setAvatarColor('#fb923c',this)"></div>
+            <div class="color-dot" style="background:#e879f9" data-color="#e879f9" onclick="setAvatarColor('#e879f9',this)"></div>
+            <div class="color-dot" style="background:#94a3b8" data-color="#94a3b8" onclick="setAvatarColor('#94a3b8',this)"></div>
+          </div>
+        </div>
+
+        <!-- Edit Profile -->
+        <div class="settings-card">
+          <div class="settings-card-title"><span>✏️</span> Edit Profile</div>
+          <div class="settings-field">
+            <div class="settings-label">Username</div>
+            <input class="settings-input" id="editUsername" placeholder="Your username"/>
+          </div>
+          <div class="settings-field">
+            <div class="settings-label">Email <span style="color:var(--text-3);font-size:10px;text-transform:none;">Cannot be changed</span></div>
+            <input class="settings-input" id="editEmail" placeholder="Your email" disabled/>
+          </div>
+          <button class="settings-save-btn" onclick="saveProfile()">Save Profile</button>
+        </div>
+
+        <!-- Stats -->
+        <div class="settings-card">
+          <div class="settings-card-title"><span>📊</span> Your Stats</div>
+          <div class="stat-chips">
+            <div class="stat-chip">
+              <div class="stat-chip-num" id="statTotal">0</div>
+              <div class="stat-chip-label">Downloads</div>
+            </div>
+            <div class="stat-chip">
+              <div class="stat-chip-num" id="statVideos">0</div>
+              <div class="stat-chip-label">Videos</div>
+            </div>
+            <div class="stat-chip">
+              <div class="stat-chip-num" id="statPlatforms">0</div>
+              <div class="stat-chip-label">Platforms</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── TAB: SECURITY ── -->
+      <div class="settings-tab-content" id="tab-security">
+
+        <div class="settings-card">
+          <div class="settings-card-title"><span>🔑</span> Change Password</div>
+          <div class="settings-field">
+            <div class="settings-label">Current Password</div>
+            <input class="settings-input" id="currentPw" type="password" placeholder="Enter current password"/>
+          </div>
+          <div class="settings-field">
+            <div class="settings-label">New Password</div>
+            <input class="settings-input" id="newPw" type="password" placeholder="Min 8 chars, 1 uppercase, 1 digit" oninput="settingsPwStrength(this.value)"/>
+            <div class="pw-strength-bar"><div class="pw-strength-fill" id="settingsPwFill"></div></div>
+            <div class="pw-strength-text" id="settingsPwText"></div>
+          </div>
+          <div class="settings-field">
+            <div class="settings-label">Confirm New Password</div>
+            <input class="settings-input" id="confirmPw" type="password" placeholder="Repeat new password"/>
+          </div>
+          <button class="settings-save-btn" onclick="changePassword()">Update Password</button>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-card-title"><span>🛡️</span> Session Info</div>
+          <div class="toggle-row" style="border:none;padding:0;">
+            <div class="toggle-info">
+              <div class="toggle-title">Logged in as</div>
+              <div class="toggle-sub" id="sessionEmail">—</div>
+            </div>
+          </div>
+          <div style="margin-top:12px;">
+            <button class="danger-btn" style="margin-bottom:0;" onclick="handleLogout();closeSettings();">
+              🚪 Sign out of all sessions
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── TAB: PREFERENCES ── -->
+      <div class="settings-tab-content" id="tab-preferences">
+
+        <div class="settings-card">
+          <div class="settings-card-title"><span>🎬</span> Default Video Quality</div>
+          <div class="option-grid" id="qualityOptions">
+            <div class="option-chip selected" data-val="best" onclick="selectOption('quality','best',this)">⭐ Best</div>
+            <div class="option-chip" data-val="1080p" onclick="selectOption('quality','1080p',this)">1080p</div>
+            <div class="option-chip" data-val="720p" onclick="selectOption('quality','720p',this)">720p</div>
+            <div class="option-chip" data-val="480p" onclick="selectOption('quality','480p',this)">480p</div>
+            <div class="option-chip" data-val="360p" onclick="selectOption('quality','360p',this)">360p</div>
+            <div class="option-chip" data-val="audio" onclick="selectOption('quality','audio',this)">🎵 Audio</div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-card-title"><span>📦</span> Default Format</div>
+          <div class="option-grid" id="formatOptions">
+            <div class="option-chip selected" data-val="auto" onclick="selectOption('format','auto',this)">🔄 Auto</div>
+            <div class="option-chip" data-val="mp4" onclick="selectOption('format','mp4',this)">MP4</div>
+            <div class="option-chip" data-val="webm" onclick="selectOption('format','webm',this)">WebM</div>
+            <div class="option-chip" data-val="mp3" onclick="selectOption('format','mp3',this)">MP3</div>
+            <div class="option-chip" data-val="m4a" onclick="selectOption('format','m4a',this)">M4A</div>
+            <div class="option-chip" data-val="wav" onclick="selectOption('format','wav',this)">WAV</div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-card-title"><span>⚡</span> Behaviour</div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-title">Save download history</div>
+              <div class="toggle-sub">Remember what you've downloaded</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="toggleHistory" checked onchange="savePrefs()"/>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-title">Auto-detect platform</div>
+              <div class="toggle-sub">Show platform badge as you type</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="toggleDetect" checked onchange="savePrefs()"/>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-title">Show download size</div>
+              <div class="toggle-sub">Display file size when available</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="toggleSize" checked onchange="savePrefs()"/>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── TAB: APPEARANCE ── -->
+      <div class="settings-tab-content" id="tab-appearance">
+
+        <div class="settings-card">
+          <div class="settings-card-title"><span>🌗</span> Theme</div>
+          <div class="option-grid" style="grid-template-columns:repeat(3,1fr);">
+            <div class="option-chip" id="themeDark" onclick="setThemeMode('dark',this)">🌙 Dark</div>
+            <div class="option-chip" id="themeLight" onclick="setThemeMode('light',this)">☀️ Light</div>
+            <div class="option-chip" id="themeSystem" onclick="setThemeMode('system',this)">💻 System</div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-card-title"><span>🎨</span> Accent Color</div>
+          <div class="accent-grid">
+            <div class="accent-chip selected" style="background:#fbbf24" data-accent="#fbbf24" onclick="setAccentColor('#fbbf24',this)"></div>
+            <div class="accent-chip" style="background:#38bdf8" data-accent="#38bdf8" onclick="setAccentColor('#38bdf8',this)"></div>
+            <div class="accent-chip" style="background:#34d399" data-accent="#34d399" onclick="setAccentColor('#34d399',this)"></div>
+            <div class="accent-chip" style="background:#f87171" data-accent="#f87171" onclick="setAccentColor('#f87171',this)"></div>
+            <div class="accent-chip" style="background:#a78bfa" data-accent="#a78bfa" onclick="setAccentColor('#a78bfa',this)"></div>
+            <div class="accent-chip" style="background:#fb923c" data-accent="#fb923c" onclick="setAccentColor('#fb923c',this)"></div>
+          </div>
+          <div style="margin-top:12px;font-size:11px;color:var(--text-3);">Changes the accent color throughout the app</div>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-card-title"><span>🔤</span> Display</div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-title">Compact mode</div>
+              <div class="toggle-sub">Reduce spacing and padding</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="toggleCompact" onchange="applyCompact(this.checked)"/>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-title">Animations</div>
+              <div class="toggle-sub">Enable smooth transitions</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="toggleAnimations" checked onchange="applyAnimations(this.checked)"/>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── TAB: DANGER ZONE ── -->
+      <div class="settings-tab-content" id="tab-danger">
+
+        <div class="settings-card">
+          <div class="settings-card-title"><span>🗑️</span> Clear Data</div>
+          <p style="font-size:13px;color:var(--text-2);margin-bottom:16px;line-height:1.6;">
+            Clear your download history from this device. Your account will remain active.
+          </p>
+          <button class="danger-btn" onclick="clearHistoryFromSettings()">
+            🗑️ Clear download history
+          </button>
+        </div>
+
+        <div class="settings-card" style="border-color:rgba(248,113,113,0.3);">
+          <div class="settings-card-title" style="color:var(--red);"><span>⚠️</span> Delete Account</div>
+          <p style="font-size:13px;color:var(--text-2);margin-bottom:16px;line-height:1.6;">
+            Permanently delete your account and all associated data. <strong style="color:var(--red);">This cannot be undone.</strong>
+          </p>
+          <div class="settings-field">
+            <div class="settings-label">Type your email to confirm</div>
+            <input class="settings-input" id="deleteConfirmEmail" placeholder="your@email.com" style="border-color:rgba(248,113,113,0.3);"/>
+          </div>
+          <button class="danger-btn" id="deleteAccountBtn" onclick="deleteAccount()">
+            ☠️ Delete my account permanently
+          </button>
+        </div>
+
+      </div>
+
+    </div><!-- end settings-body -->
+
+  </div><!-- end settings-panel -->
+</div><!-- end settings-overlay -->
 
 <!-- ══════════════════════════════════════════════════════
      DOWNLOADS PANEL
@@ -1891,6 +2761,562 @@ async function resetPassword() {
     alert('❌ ' + e.message);
   }
 }
+
+
+// ══════════════════════════════════════════════════════════
+//  SETTINGS PANEL
+// ══════════════════════════════════════════════════════════
+let settingsPrefs = JSON.parse(localStorage.getItem('smf_prefs') || '{}');
+let selectedAvatarColor = localStorage.getItem('smf_avatar_color') || '#fbbf24';
+
+function openSettings(e) {
+  if (e) e.stopPropagation();
+  closeUserMenu();
+  if (!authToken) return;
+  const overlay = document.getElementById('settingsOverlay');
+  if (overlay) {
+    overlay.classList.add('open');
+    loadSettingsData();
+  }
+}
+
+function closeSettings() {
+  const overlay = document.getElementById('settingsOverlay');
+  if (overlay) overlay.classList.remove('open');
+}
+
+// Close on overlay background click
+window.addEventListener('load', function() {
+  const so = document.getElementById('settingsOverlay');
+  if (so) so.addEventListener('click', function(e) {
+    if (e.target === this) closeSettings();
+  });
+});
+
+function switchTab(tabName, btn) {
+  // Hide all sections
+  document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.settings-tab').forEach(b => b.classList.remove('active'));
+  // Show selected
+  const sec = document.getElementById('tab-' + tabName);
+  if (sec) sec.classList.add('active');
+  if (btn) btn.classList.add('active');
+}
+
+function loadSettingsData() {
+  const user = JSON.parse(localStorage.getItem('smf_user') || '{}');
+  const name  = user.username || user.email?.split('@')[0] || 'User';
+  const email = user.email || '';
+
+  // Profile tab
+  const el = (id) => document.getElementById(id);
+  if (el('displayUsername')) el('displayUsername').textContent = name;
+  if (el('displayEmail'))    el('displayEmail').textContent    = email;
+  if (el('displayJoined'))   el('displayJoined').textContent   = 'Recently';
+  if (el('displayDownloads'))el('displayDownloads').textContent= history.length;
+  if (el('newUsername'))     el('newUsername').value           = name;
+
+  // Update avatar preview
+  if (el('previewAvatar')) {
+    el('previewAvatar').textContent    = name.charAt(0).toUpperCase();
+    el('previewAvatar').style.background = selectedAvatarColor;
+  }
+  if (el('previewName'))  el('previewName').textContent  = name;
+  if (el('previewEmail')) el('previewEmail').textContent = email;
+
+  // Update avatar color grid letters
+  document.querySelectorAll('.avatar-color').forEach(el => {
+    el.textContent = name.charAt(0).toUpperCase();
+    el.classList.toggle('selected', el.dataset.color === selectedAvatarColor);
+  });
+
+  // Preferences
+  if (el('prefQuality'))    el('prefQuality').value   = settingsPrefs.quality    || 'best';
+  if (el('prefFormat'))     el('prefFormat').value    = settingsPrefs.format     || 'auto';
+  if (el('prefHistory'))    el('prefHistory').checked = settingsPrefs.history    !== false;
+  if (el('prefNotify'))     el('prefNotify').checked  = settingsPrefs.notify     !== false;
+  if (el('prefAutoDetect')) el('prefAutoDetect').checked = settingsPrefs.autoDetect !== false;
+
+  // Appearance
+  if (el('appearTheme')) el('appearTheme').checked = isDark;
+
+  // Last login
+  if (el('lastLogin')) el('lastLogin').textContent = new Date().toLocaleString();
+}
+
+function toggleEditField(field) {
+  const el = document.getElementById('edit' + field.charAt(0).toUpperCase() + field.slice(1));
+  if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+async function saveUsername() {
+  const newName = document.getElementById('newUsername').value.trim();
+  if (!newName || newName.length < 3) {
+    alert('Username must be at least 3 characters.'); return;
+  }
+  // Update locally for now
+  const user = JSON.parse(localStorage.getItem('smf_user') || '{}');
+  user.username = newName;
+  localStorage.setItem('smf_user', JSON.stringify(user));
+
+  // Update display everywhere
+  document.getElementById('displayUsername').textContent = newName;
+  document.getElementById('userDisplayName').textContent = newName;
+  document.getElementById('dropdownName').textContent    = newName;
+  document.getElementById('userAvatar').textContent      = newName.charAt(0).toUpperCase();
+  document.getElementById('previewName').textContent     = newName;
+  document.getElementById('editUsername').style.display  = 'none';
+
+  showSettingsSuccess('✅ Username updated!');
+}
+
+function selectAvatarColor(el) {
+  document.querySelectorAll('.avatar-color').forEach(a => a.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedAvatarColor = el.dataset.color;
+  localStorage.setItem('smf_avatar_color', selectedAvatarColor);
+
+  // Update all avatars
+  document.getElementById('previewAvatar').style.background = selectedAvatarColor;
+  document.getElementById('userAvatar').style.background    = selectedAvatarColor;
+  showSettingsSuccess('✅ Avatar color saved!');
+}
+
+function checkSecPasswordStrength(val) {
+  const fill = document.getElementById('secStrengthFill');
+  const text = document.getElementById('secStrengthText');
+  if (!fill) return;
+  if (!val) { fill.style.width='0'; text.textContent=''; return; }
+  let score = 0;
+  if (val.length >= 8)          score++;
+  if (/[A-Z]/.test(val))        score++;
+  if (/[0-9]/.test(val))        score++;
+  if (/[^A-Za-z0-9]/.test(val)) score++;
+  const levels = [
+    {w:'25%',color:'#f87171',label:'Weak'},
+    {w:'50%',color:'#fb923c',label:'Fair'},
+    {w:'75%',color:'#fbbf24',label:'Good'},
+    {w:'100%',color:'#34d399',label:'Strong ✅'},
+  ];
+  const lv = levels[score-1] || levels[0];
+  fill.style.width = lv.w;
+  fill.style.background = lv.color;
+  text.style.color = lv.color;
+  text.textContent = lv.label;
+}
+
+async function changePassword() {
+  const current = document.getElementById('currentPass').value;
+  const newPass  = document.getElementById('secNewPass').value;
+  const confirm  = document.getElementById('secConfirmPass').value;
+
+  if (!current)               { alert('Please enter your current password.'); return; }
+  if (newPass.length < 8)     { alert('New password must be at least 8 characters.'); return; }
+  if (!/[A-Z]/.test(newPass)) { alert('Password must have at least 1 uppercase letter.'); return; }
+  if (!/[0-9]/.test(newPass)) { alert('Password must have at least 1 number.'); return; }
+  if (newPass !== confirm)     { alert('Passwords do not match.'); return; }
+
+  try {
+    const res = await fetch(`${API}/auth/change-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ current_password: current, new_password: newPass }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Failed to change password.');
+    document.getElementById('currentPass').value   = '';
+    document.getElementById('secNewPass').value    = '';
+    document.getElementById('secConfirmPass').value= '';
+    showSettingsSuccess('✅ Password changed successfully!');
+  } catch(e) {
+    alert('❌ ' + e.message);
+  }
+}
+
+function savePref(key, value) {
+  settingsPrefs[key] = value;
+  localStorage.setItem('smf_prefs', JSON.stringify(settingsPrefs));
+  showSettingsSuccess('✅ Preference saved!');
+}
+
+function toggleThemeFromSettings(checked) {
+  isDark = checked;
+  applyTheme();
+  showSettingsSuccess('✅ Theme updated!');
+}
+
+function setAccent(el, color, hover) {
+  document.querySelectorAll('.accent-dot').forEach(d => d.classList.remove('selected'));
+  el.classList.add('selected');
+  document.documentElement.style.setProperty('--amber', color);
+  localStorage.setItem('smf_accent', color);
+  showSettingsSuccess('✅ Accent color applied!');
+}
+
+function clearHistoryFromSettings() {
+  if (!confirm('Clear all download history? This cannot be undone.')) return;
+  history = [];
+  const key = getHistoryKey();
+  if (key) localStorage.setItem(key, '[]');
+  renderHistory();
+  document.getElementById('displayDownloads').textContent = '0';
+  showSettingsSuccess('✅ History cleared!');
+}
+
+async function deleteAccount() {
+  const input = document.getElementById('deleteConfirmInput').value.trim();
+  if (input !== 'DELETE') {
+    alert('Please type DELETE exactly to confirm account deletion.'); return;
+  }
+  if (!confirm('This will permanently delete your account. Are you absolutely sure?')) return;
+
+  try {
+    const res = await fetch(`${API}/auth/delete-account`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${authToken}` },
+    });
+    if (!res.ok) throw new Error('Could not delete account.');
+    closeSettings();
+    handleLogout();
+    alert('Your account has been deleted.');
+  } catch(e) {
+    alert('❌ ' + e.message);
+  }
+}
+
+function showSettingsSuccess(msg) {
+  showStatus('success', msg);
+}
+
+// Apply saved accent color on load
+const savedAccent = localStorage.getItem('smf_accent');
+if (savedAccent) document.documentElement.style.setProperty('--amber', savedAccent);
+
+// Apply saved avatar color to header avatar
+const savedAvatarColor = localStorage.getItem('smf_avatar_color');
+if (savedAvatarColor) {
+  const av = document.getElementById('userAvatar');
+  if (av) av.style.background = savedAvatarColor;
+}
+
+
+// ══════════════════════════════════════════════════════════
+//  SETTINGS PANEL
+// ══════════════════════════════════════════════════════════
+// settingsPrefs already declared above
+
+function openSettings(e) {
+  if (e) e.stopPropagation();
+  closeUserMenu();
+  if (!authToken) return;
+  const overlay = document.getElementById('settingsOverlay');
+  if (overlay) {
+    overlay.classList.add('open');
+    loadSettingsData();
+  }
+}
+
+function closeSettings() {
+  const overlay = document.getElementById('settingsOverlay');
+  if (overlay) overlay.classList.remove('open');
+}
+
+// Close on overlay background click
+window.addEventListener('load', function() {
+  const so = document.getElementById('settingsOverlay');
+  if (so) so.addEventListener('click', function(e) {
+    if (e.target === this) closeSettings();
+  });
+});
+
+function switchTab(name, btn) {
+  // Hide all tabs
+  document.querySelectorAll('.settings-tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+  // Show selected
+  const tab = document.getElementById('tab-' + name);
+  if (tab) tab.classList.add('active');
+  if (btn) btn.classList.add('active');
+}
+
+function loadSettingsData() {
+  const user = JSON.parse(localStorage.getItem('smf_user') || '{}');
+  const name  = user.username || user.email?.split('@')[0] || 'User';
+  const email = user.email || '';
+  const color = localStorage.getItem('smf_avatar_color') || '#fbbf24';
+
+  // Profile tab
+  document.getElementById('settingsAvatar').textContent = name.charAt(0).toUpperCase();
+  document.getElementById('settingsAvatar').style.background = color;
+  document.getElementById('settingsName').textContent  = name;
+  document.getElementById('settingsEmail').textContent = email;
+  document.getElementById('settingsSince').textContent = 'Member since ' + new Date().getFullYear();
+  document.getElementById('editUsername').value = name;
+  document.getElementById('editEmail').value    = email;
+  document.getElementById('sessionEmail').textContent = email;
+
+  // Stats
+  const total     = history.length;
+  const videos    = history.filter(h => (h.media_type||'').includes('video')).length;
+  const platforms = new Set(history.map(h => h.platform)).size;
+  document.getElementById('statTotal').textContent     = total;
+  document.getElementById('statVideos').textContent    = videos;
+  document.getElementById('statPlatforms').textContent = platforms;
+
+  // Color dots
+  document.querySelectorAll('.color-dot').forEach(d => {
+    d.classList.toggle('selected', d.dataset.color === color);
+  });
+
+  // Preferences
+  const prefs = settingsPrefs;
+  const quality = prefs.quality || 'best';
+  const format  = prefs.format  || 'auto';
+  document.querySelectorAll('#qualityOptions .option-chip').forEach(c => {
+    c.classList.toggle('selected', c.dataset.val === quality);
+  });
+  document.querySelectorAll('#formatOptions .option-chip').forEach(c => {
+    c.classList.toggle('selected', c.dataset.val === format);
+  });
+  if (document.getElementById('toggleHistory'))
+    document.getElementById('toggleHistory').checked = prefs.saveHistory !== false;
+  if (document.getElementById('toggleDetect'))
+    document.getElementById('toggleDetect').checked = prefs.autoDetect !== false;
+  if (document.getElementById('toggleSize'))
+    document.getElementById('toggleSize').checked = prefs.showSize !== false;
+
+  // Appearance
+  const theme = localStorage.getItem('smf_theme') || 'dark';
+  document.querySelectorAll('[id^="theme"]').forEach(el => el.classList.remove('selected'));
+  const themeEl = document.getElementById('theme' + theme.charAt(0).toUpperCase() + theme.slice(1));
+  if (themeEl) themeEl.classList.add('selected');
+
+  const accent = localStorage.getItem('smf_accent') || '#fbbf24';
+  document.querySelectorAll('.accent-chip').forEach(c => {
+    c.classList.toggle('selected', c.dataset.accent === accent);
+  });
+}
+
+// ── Profile ─────────────────────────────────────────────
+function setAvatarColor(color, dot) {
+  localStorage.setItem('smf_avatar_color', color);
+  document.getElementById('settingsAvatar').style.background = color;
+  document.getElementById('userAvatar').style.background = color;
+  document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('selected'));
+  dot.classList.add('selected');
+}
+
+function saveProfile() {
+  const username = document.getElementById('editUsername').value.trim();
+  if (!username) { alert('Username cannot be empty.'); return; }
+  if (username.length < 3) { alert('Username must be at least 3 characters.'); return; }
+
+  const user = JSON.parse(localStorage.getItem('smf_user') || '{}');
+  user.username = username;
+  localStorage.setItem('smf_user', JSON.stringify(user));
+
+  // Update UI
+  document.getElementById('settingsName').textContent  = username;
+  document.getElementById('userDisplayName').textContent = username;
+  document.getElementById('dropdownName').textContent  = username;
+  document.getElementById('userAvatar').textContent    = username.charAt(0).toUpperCase();
+
+  showStatus('success', '✅ Profile updated successfully!');
+  showSettingsToast('Profile saved!');
+}
+
+// ── Security ─────────────────────────────────────────────
+function settingsPwStrength(val) {
+  const fill = document.getElementById('settingsPwFill');
+  const text = document.getElementById('settingsPwText');
+  if (!val || !fill) return;
+  let score = 0;
+  if (val.length >= 8)          score++;
+  if (/[A-Z]/.test(val))        score++;
+  if (/[0-9]/.test(val))        score++;
+  if (/[^A-Za-z0-9]/.test(val)) score++;
+  const levels = [
+    { w:'25%', c:'#f87171', l:'Weak' },
+    { w:'50%', c:'#fb923c', l:'Fair' },
+    { w:'75%', c:'#fbbf24', l:'Good' },
+    { w:'100%',c:'#34d399', l:'Strong ✅' },
+  ];
+  const lv = levels[score-1] || levels[0];
+  fill.style.width = lv.w;
+  fill.style.background = lv.c;
+  text.style.color = lv.c;
+  text.textContent = lv.l;
+}
+
+async function changePassword() {
+  const current = document.getElementById('currentPw').value;
+  const newPw   = document.getElementById('newPw').value;
+  const confirm = document.getElementById('confirmPw').value;
+
+  if (!current) { alert('Please enter your current password.'); return; }
+  if (newPw.length < 8)     { alert('New password must be at least 8 characters.'); return; }
+  if (!/[A-Z]/.test(newPw)) { alert('New password must contain at least 1 uppercase letter.'); return; }
+  if (!/[0-9]/.test(newPw)) { alert('New password must contain at least 1 number.'); return; }
+  if (newPw !== confirm)     { alert('Passwords do not match.'); return; }
+
+  try {
+    const res = await fetch(`${API}/auth/change-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ current_password: current, new_password: newPw }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Failed to change password.');
+    document.getElementById('currentPw').value = '';
+    document.getElementById('newPw').value     = '';
+    document.getElementById('confirmPw').value = '';
+    showSettingsToast('Password updated!');
+    showStatus('success', '✅ Password changed successfully!');
+  } catch(e) {
+    alert('❌ ' + e.message);
+  }
+}
+
+// ── Preferences ──────────────────────────────────────────
+function selectOption(type, val, el) {
+  const container = type === 'quality' ? 'qualityOptions' : 'formatOptions';
+  document.querySelectorAll('#' + container + ' .option-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  settingsPrefs[type] = val;
+  savePrefs();
+}
+
+function savePrefs() {
+  settingsPrefs.saveHistory = document.getElementById('toggleHistory')?.checked !== false;
+  settingsPrefs.autoDetect  = document.getElementById('toggleDetect')?.checked !== false;
+  settingsPrefs.showSize    = document.getElementById('toggleSize')?.checked !== false;
+  localStorage.setItem('smf_prefs', JSON.stringify(settingsPrefs));
+  showSettingsToast('Preferences saved!');
+}
+
+// ── Appearance ───────────────────────────────────────────
+function setThemeMode(mode, el) {
+  document.querySelectorAll('[id^="theme"]').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  if (mode === 'system') {
+    isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  } else {
+    isDark = mode === 'dark';
+  }
+  applyTheme();
+  localStorage.setItem('smf_theme_mode', mode);
+}
+
+function setAccentColor(color, el) {
+  document.querySelectorAll('.accent-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  localStorage.setItem('smf_accent', color);
+  document.documentElement.style.setProperty('--amber', color);
+  document.documentElement.style.setProperty('--amber-dim', color + '20');
+  document.documentElement.style.setProperty('--border-hi', color + '4d');
+  document.documentElement.style.setProperty('--glow-a', color + '33');
+  showSettingsToast('Accent color applied!');
+}
+
+function applyCompact(on) {
+  document.body.style.setProperty('--radius', on ? '10px' : '16px');
+  localStorage.setItem('smf_compact', on ? '1' : '0');
+}
+
+function applyAnimations(on) {
+  document.body.style.setProperty('--transition', on ? 'all 0.2s' : 'none');
+  localStorage.setItem('smf_animations', on ? '1' : '0');
+}
+
+// ── Danger Zone ──────────────────────────────────────────
+function clearHistoryFromSettings() {
+  if (!confirm('Clear all download history? This cannot be undone.')) return;
+  history = [];
+  const key = getHistoryKey();
+  if (key) localStorage.setItem(key, '[]');
+  renderHistory();
+  loadSettingsData();
+  showSettingsToast('History cleared!');
+}
+
+async function deleteAccount() {
+  const email    = document.getElementById('deleteConfirmEmail').value.trim();
+  const user     = JSON.parse(localStorage.getItem('smf_user') || '{}');
+  const expected = user.email || '';
+
+  if (!email) { alert('Please enter your email to confirm.'); return; }
+  if (email.toLowerCase() !== expected.toLowerCase()) {
+    alert('Email does not match your account email.'); return;
+  }
+  if (!confirm('Are you absolutely sure? This will permanently delete your account and all data.')) return;
+
+  try {
+    const res = await fetch(`${API}/auth/delete-account`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${authToken}` },
+    });
+    if (res.ok || res.status === 204) {
+      handleLogout();
+      closeSettings();
+      showStatus('info', '👋 Your account has been deleted.');
+    } else {
+      const d = await res.json().catch(() => ({}));
+      alert('❌ ' + (d.detail || 'Could not delete account.'));
+    }
+  } catch(e) {
+    // Fallback — just log out locally
+    handleLogout();
+    closeSettings();
+  }
+}
+
+// ── Toast notification inside settings ──────────────────
+function showSettingsToast(msg) {
+  let toast = document.getElementById('settingsToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'settingsToast';
+    toast.style.cssText = `
+      position:fixed;bottom:24px;right:24px;
+      background:var(--green);color:#0c0c0f;
+      padding:10px 18px;border-radius:10px;
+      font-size:13px;font-weight:700;z-index:9999;
+      opacity:0;transform:translateY(10px);
+      transition:all 0.3s;pointer-events:none;
+    `;
+    document.body.appendChild(toast);
+  }
+  toast.textContent = '✅ ' + msg;
+  toast.style.opacity = '1';
+  toast.style.transform = 'translateY(0)';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(10px)';
+  }, 2500);
+}
+
+// ── Apply saved accent on load ───────────────────────────
+(function applyAccentOnLoad() {
+  const accent = localStorage.getItem('smf_accent');
+  if (accent && accent !== '#fbbf24') {
+    document.documentElement.style.setProperty('--amber', accent);
+    document.documentElement.style.setProperty('--amber-dim', accent + '20');
+    document.documentElement.style.setProperty('--border-hi', accent + '4d');
+    document.documentElement.style.setProperty('--glow-a', accent + '33');
+  }
+  const avatarColor = localStorage.getItem('smf_avatar_color');
+  if (avatarColor) {
+    const av = document.getElementById('userAvatar');
+    if (av) av.style.background = avatarColor;
+  }
+})();
 
 // ══════════════════════════════════════════════════════════
 //  INIT
