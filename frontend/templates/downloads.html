@@ -7,126 +7,454 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
 <style>
-:root{--bg:#0c0c0f;--bg2:#111116;--surface:#16161e;--card:#1a1a24;--border:rgba(255,255,255,0.06);--border-hi:rgba(255,200,70,0.3);--amber:#fbbf24;--amber-dim:rgba(251,191,36,0.12);--blue:#38bdf8;--green:#34d399;--red:#f87171;--text:#e8e8ee;--text-2:#9999b3;--text-3:#55556e;--radius:16px;}
-[data-theme="light"]{--bg:#f5f5f8;--bg2:#ebebf0;--surface:#ffffff;--card:#fafafa;--border:rgba(0,0,0,0.08);--text:#1a1a2e;--text-2:#555570;--text-3:#aaaacc;}
+:root{
+  --bg:#0c0c0f;--bg2:#111116;--surface:#16161e;--card:#1a1a24;
+  --border:rgba(255,255,255,0.06);--border-hi:rgba(255,200,70,0.3);
+  --amber:#fbbf24;--amber-dim:rgba(251,191,36,0.12);
+  --blue:#38bdf8;--blue-dim:rgba(56,189,248,0.1);
+  --green:#34d399;--green-dim:rgba(52,211,153,0.1);
+  --red:#f87171;--red-dim:rgba(248,113,113,0.1);
+  --purple:#a78bfa;--purple-dim:rgba(167,139,250,0.1);
+  --orange:#fb923c;--orange-dim:rgba(251,146,60,0.1);
+  --text:#e8e8ee;--text-2:#9999b3;--text-3:#55556e;
+  --radius:16px;--radius-sm:10px;
+}
+[data-theme="light"]{
+  --bg:#f5f5f8;--bg2:#ebebf0;--surface:#ffffff;--card:#fafafa;
+  --border:rgba(0,0,0,0.08);--border-hi:rgba(217,119,6,0.3);
+  --text:#1a1a2e;--text-2:#555570;--text-3:#aaaacc;
+}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--bg);color:var(--text);font-family:'Cabinet Grotesk',sans-serif;min-height:100vh;}
-.wrapper{max-width:900px;margin:0 auto;padding:32px 20px;}
-.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;}
-.back-btn{display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;font-size:13px;font-weight:600;font-family:'Cabinet Grotesk',sans-serif;text-decoration:none;transition:all 0.2s;}
+.wrapper{max-width:960px;margin:0 auto;padding:28px 20px 60px;}
+
+/* ── Header ── */
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;}
+.header-left{display:flex;align-items:center;gap:14px;}
+.back-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;font-size:13px;font-weight:600;font-family:'Cabinet Grotesk',sans-serif;text-decoration:none;transition:all 0.2s;}
 .back-btn:hover{border-color:var(--amber);color:var(--amber);}
-.page-title{font-size:24px;font-weight:800;}
+.page-title{font-size:22px;font-weight:900;letter-spacing:-0.5px;}
 .page-title span{color:var(--amber);}
-.theme-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;display:grid;place-items:center;font-size:16px;transition:all 0.2s;}
+.header-right{display:flex;align-items:center;gap:10px;}
+.theme-btn{width:36px;height:36px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;display:grid;place-items:center;font-size:15px;transition:all 0.2s;}
 .theme-btn:hover{border-color:var(--amber);}
-.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;}
-.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;transition:border-color 0.2s;}
+
+/* ── Stats Grid ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;position:relative;overflow:hidden;transition:border-color 0.2s;}
 .stat-card:hover{border-color:var(--border-hi);}
-.stat-num{font-size:28px;font-weight:900;color:var(--amber);}
-.stat-label{font-size:12px;color:var(--text-2);margin-top:4px;font-weight:600;}
-.stat-icon{font-size:20px;margin-bottom:8px;}
-.toolbar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
-.search-wrap{flex:1;min-width:200px;position:relative;}
-.search-input{width:100%;padding:10px 14px 10px 40px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:'Cabinet Grotesk',sans-serif;outline:none;transition:border-color 0.2s;}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.stat-card.s-total::before{background:var(--amber);}
+.stat-card.s-video::before{background:var(--blue);}
+.stat-card.s-image::before{background:var(--green);}
+.stat-card.s-size::before{background:var(--purple);}
+.stat-icon{font-size:22px;margin-bottom:10px;}
+.stat-num{font-size:26px;font-weight:900;letter-spacing:-1px;margin-bottom:2px;}
+.stat-label{font-size:11px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:0.5px;}
+.stat-change{font-size:11px;margin-top:6px;font-weight:600;}
+.stat-change.up{color:var(--green);}
+.stat-change.neutral{color:var(--text-3);}
+
+/* ── Chart ── */
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;margin-bottom:20px;}
+.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.chart-title{font-size:14px;font-weight:700;}
+.chart-legend{display:flex;align-items:center;gap:14px;}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2);}
+.legend-dot{width:8px;height:8px;border-radius:50%;}
+.chart-wrap{position:relative;height:130px;display:flex;align-items:flex-end;gap:6px;padding-bottom:24px;}
+.chart-bar-group{flex:1;display:flex;align-items:flex-end;gap:2px;position:relative;}
+.chart-bar{border-radius:4px 4px 0 0;transition:opacity 0.2s;cursor:pointer;min-height:4px;}
+.chart-bar:hover{opacity:0.8;}
+.chart-bar.video-bar{background:var(--blue);}
+.chart-bar.total-bar{background:var(--amber);opacity:0.4;}
+.chart-day{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--text-3);white-space:nowrap;}
+.chart-yaxis{position:absolute;left:0;top:0;bottom:24px;display:flex;flex-direction:column;justify-content:space-between;width:28px;}
+.chart-ylabel{font-size:10px;color:var(--text-3);text-align:right;}
+.chart-inner{flex:1;display:flex;align-items:flex-end;gap:6px;padding-bottom:24px;position:relative;border-left:1px solid var(--border);border-bottom:1px solid var(--border);}
+
+/* ── Toolbar ── */
+.toolbar{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:16px;}
+.search-row{display:flex;gap:10px;margin-bottom:14px;}
+.search-wrap{flex:1;position:relative;}
+.search-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--text-3);}
+.search-input{width:100%;padding:10px 14px 10px 38px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-family:'Cabinet Grotesk',sans-serif;outline:none;transition:border-color 0.2s;}
 .search-input:focus{border-color:var(--amber);}
-.search-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--text-3);}
-.filter-group{display:flex;gap:6px;flex-wrap:wrap;}
-.filter-btn{padding:8px 14px;border-radius:100px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;transition:all 0.2s;font-family:'Cabinet Grotesk',sans-serif;}
-.filter-btn:hover{border-color:var(--amber);color:var(--amber);}
-.filter-btn.active{background:var(--amber);border-color:var(--amber);color:#0c0c0f;}
-.clear-btn{padding:8px 16px;border-radius:10px;font-size:12px;font-weight:600;border:1px solid rgba(248,113,113,0.3);background:rgba(248,113,113,0.08);color:var(--red);cursor:pointer;transition:all 0.2s;font-family:'Cabinet Grotesk',sans-serif;}
+.search-input::placeholder{color:var(--text-3);}
+.sort-select{padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-family:'Cabinet Grotesk',sans-serif;outline:none;cursor:pointer;min-width:160px;}
+.sort-select:focus{border-color:var(--amber);}
+.filter-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.filter-label{font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px;margin-right:4px;}
+.filter-chip{padding:6px 13px;border-radius:100px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;transition:all 0.2s;font-family:'Cabinet Grotesk',sans-serif;white-space:nowrap;}
+.filter-chip:hover{border-color:var(--amber);color:var(--amber);}
+.filter-chip.active{background:var(--amber);border-color:var(--amber);color:#0c0c0f;}
+.filter-chip .count{opacity:0.7;font-size:11px;}
+
+/* ── Results bar ── */
+.results-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:0 4px;}
+.results-count{font-size:13px;color:var(--text-2);}
+.results-count strong{color:var(--text);font-weight:700;}
+.clear-btn{font-size:12px;font-weight:600;color:var(--red);background:var(--red-dim);border:1px solid rgba(248,113,113,0.2);border-radius:8px;padding:6px 12px;cursor:pointer;transition:all 0.2s;font-family:'Cabinet Grotesk',sans-serif;}
 .clear-btn:hover{background:rgba(248,113,113,0.15);}
-.dl-list{display:flex;flex-direction:column;gap:10px;}
-.dl-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;display:flex;align-items:center;gap:16px;transition:all 0.2s;cursor:pointer;}
+
+/* ── Download Cards ── */
+.dl-list{display:flex;flex-direction:column;gap:8px;}
+.dl-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:0;overflow:hidden;transition:all 0.2s;cursor:pointer;}
 .dl-card:hover{border-color:var(--border-hi);transform:translateY(-1px);}
-.dl-icon{width:48px;height:48px;border-radius:12px;background:var(--surface);border:1px solid var(--border);display:grid;place-items:center;font-size:22px;flex-shrink:0;}
-.dl-info{flex:1;min-width:0;}
-.dl-title{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px;}
-.dl-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.dl-platform{font-size:11px;font-weight:700;color:var(--amber);background:var(--amber-dim);padding:3px 10px;border-radius:100px;}
+.dl-card-inner{display:flex;align-items:center;gap:14px;padding:14px 18px;}
+.dl-thumb{width:46px;height:46px;border-radius:12px;background:var(--surface);border:1px solid var(--border);display:grid;place-items:center;font-size:20px;flex-shrink:0;position:relative;}
+.dl-thumb .platform-dot{position:absolute;bottom:-3px;right:-3px;width:16px;height:16px;border-radius:50%;border:2px solid var(--card);display:grid;place-items:center;font-size:8px;}
+.dl-content{flex:1;min-width:0;}
+.dl-title{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px;}
+.dl-meta-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.platform-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:100px;background:var(--amber-dim);color:var(--amber);}
+.type-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:100px;border:1px solid;}
+.type-badge.video{color:var(--blue);border-color:rgba(56,189,248,0.3);background:var(--blue-dim);}
+.type-badge.audio{color:var(--purple);border-color:rgba(167,139,250,0.3);background:var(--purple-dim);}
+.type-badge.image{color:var(--green);border-color:rgba(52,211,153,0.3);background:var(--green-dim);}
+.type-badge.document{color:var(--orange);border-color:rgba(251,146,60,0.3);background:var(--orange-dim);}
 .dl-time{font-size:11px;color:var(--text-3);}
-.dl-url{font-size:11px;color:var(--text-3);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:'JetBrains Mono',monospace;}
-.dl-badge{font-size:10px;font-weight:700;padding:4px 10px;border-radius:100px;border:1px solid;flex-shrink:0;}
-.dl-badge.video{color:#38bdf8;border-color:rgba(56,189,248,0.3);background:rgba(56,189,248,0.08);}
-.dl-badge.audio{color:#a78bfa;border-color:rgba(167,139,250,0.3);background:rgba(167,139,250,0.08);}
-.dl-badge.image{color:#34d399;border-color:rgba(52,211,153,0.3);background:rgba(52,211,153,0.08);}
-.dl-badge.document{color:#fb923c;border-color:rgba(251,146,60,0.3);background:rgba(251,146,60,0.08);}
-.dl-actions{display:flex;gap:8px;flex-shrink:0;}
-.action-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;display:grid;place-items:center;font-size:15px;transition:all 0.2s;}
-.action-btn:hover{border-color:var(--amber);color:var(--amber);}
-.action-btn.danger:hover{border-color:var(--red);color:var(--red);}
-.empty{text-align:center;padding:80px 20px;}
-.empty-icon{font-size:64px;margin-bottom:20px;opacity:0.4;}
-.empty-title{font-size:20px;font-weight:800;color:var(--text-2);margin-bottom:10px;}
-.empty-sub{font-size:14px;color:var(--text-3);line-height:1.7;margin-bottom:24px;}
-.go-home{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:12px;background:var(--amber);color:#0c0c0f;font-size:14px;font-weight:700;text-decoration:none;transition:background 0.2s;}
-.go-home:hover{background:#f59e0b;}
-.pagination{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:28px;}
-.page-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;display:grid;place-items:center;font-size:13px;font-weight:600;font-family:'Cabinet Grotesk',sans-serif;transition:all 0.2s;}
-.page-btn:hover,.page-btn.active{border-color:var(--amber);color:var(--amber);}
-.page-btn.active{background:var(--amber-dim);}
-@media(max-width:600px){.stats-grid{grid-template-columns:repeat(2,1fr);}.toolbar{flex-direction:column;align-items:stretch;}.dl-card{flex-wrap:wrap;}}
+.dl-size{font-size:11px;color:var(--text-3);font-family:'JetBrains Mono',monospace;}
+.dl-progress{height:3px;background:var(--border);margin:0 18px 0;border-radius:100px;overflow:hidden;}
+.dl-progress-fill{height:100%;background:linear-gradient(90deg,var(--amber),var(--green));border-radius:100px;width:100%;}
+.dl-url{font-size:10px;color:var(--text-3);font-family:'JetBrains Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px;}
+.dl-actions{display:flex;gap:6px;flex-shrink:0;}
+.act-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;display:grid;place-items:center;font-size:13px;transition:all 0.2s;}
+.act-btn:hover{border-color:var(--amber);color:var(--amber);}
+.act-btn.del:hover{border-color:var(--red);color:var(--red);}
+
+/* ── Empty / Login ── */
+.empty{text-align:center;padding:70px 20px;}
+.empty-icon{font-size:56px;margin-bottom:16px;opacity:0.35;}
+.empty-title{font-size:18px;font-weight:800;color:var(--text-2);margin-bottom:8px;}
+.empty-sub{font-size:13px;color:var(--text-3);line-height:1.7;margin-bottom:20px;}
+.cta-btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:12px;background:var(--amber);color:#0c0c0f;font-size:13px;font-weight:700;text-decoration:none;transition:background 0.2s;}
+.cta-btn:hover{background:#f59e0b;}
+
+/* ── Pagination ── */
+.pagination{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:24px;}
+.pg-btn{width:34px;height:34px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;display:grid;place-items:center;font-size:12px;font-weight:600;font-family:'Cabinet Grotesk',sans-serif;transition:all 0.2s;}
+.pg-btn:hover,.pg-btn.active{border-color:var(--amber);color:var(--amber);}
+.pg-btn.active{background:var(--amber-dim);}
+.pg-info{font-size:12px;color:var(--text-3);padding:0 8px;}
+
+@media(max-width:640px){
+  .stats-grid{grid-template-columns:repeat(2,1fr);}
+  .search-row{flex-direction:column;}
+  .sort-select{width:100%;}
+  .dl-card-inner{flex-wrap:wrap;}
+  .chart-card{display:none;}
+}
 </style>
 </head>
 <body>
 <div class="wrapper">
+
+  <!-- Header -->
   <div class="page-header">
-    <a href="/" class="back-btn">← Back</a>
-    <h1 class="page-title">📥 My <span>Downloads</span></h1>
-    <button class="theme-btn" id="themeBtn">🌙</button>
+    <div class="header-left">
+      <a href="/" class="back-btn">← Back</a>
+      <h1 class="page-title">📥 My <span>Downloads</span></h1>
+    </div>
+    <div class="header-right">
+      <button class="theme-btn" id="themeBtn">🌙</button>
+    </div>
   </div>
+
+  <!-- Stats -->
   <div class="stats-grid" id="statsGrid"></div>
-  <div class="toolbar">
-    <div class="search-wrap">
-      <span class="search-icon">🔍</span>
-      <input class="search-input" id="searchInput" placeholder="Search downloads..." oninput="applyFilters()"/>
+
+  <!-- Weekly Chart -->
+  <div class="chart-card" id="chartCard">
+    <div class="chart-header">
+      <div class="chart-title">Downloads this week</div>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div>Total</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>Videos</div>
+      </div>
     </div>
-    <div class="filter-group">
-      <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
-      <button class="filter-btn" onclick="setFilter('youtube',this)">▶️ YouTube</button>
-      <button class="filter-btn" onclick="setFilter('instagram',this)">📸 Instagram</button>
-      <button class="filter-btn" onclick="setFilter('tiktok',this)">🎵 TikTok</button>
-      <button class="filter-btn" onclick="setFilter('video',this)">🎬 Video</button>
-      <button class="filter-btn" onclick="setFilter('image',this)">🖼️ Image</button>
-      <button class="filter-btn" onclick="setFilter('document',this)">📄 Doc</button>
+    <div style="display:flex;gap:8px;">
+      <div class="chart-yaxis" id="yAxis"></div>
+      <div class="chart-inner" id="chartInner"></div>
     </div>
-    <button class="clear-btn" onclick="clearAll()">🗑️ Clear all</button>
   </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search-row">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" id="searchInput" placeholder="Search by title, URL or platform..." oninput="applyFilters()"/>
+      </div>
+      <select class="sort-select" id="sortSelect" onchange="applyFilters()">
+        <option value="newest">↓ Newest first</option>
+        <option value="oldest">↑ Oldest first</option>
+        <option value="largest">⬆ Largest file</option>
+        <option value="smallest">⬇ Smallest file</option>
+        <option value="platform">📋 By platform</option>
+      </select>
+    </div>
+    <div class="filter-row">
+      <span class="filter-label">Filter:</span>
+      <button class="filter-chip active" data-filter="all" onclick="setFilter('all',this)">All <span class="count" id="cnt-all"></span></button>
+      <button class="filter-chip" data-filter="youtube" onclick="setFilter('youtube',this)">▶️ YouTube <span class="count" id="cnt-youtube"></span></button>
+      <button class="filter-chip" data-filter="instagram" onclick="setFilter('instagram',this)">📸 Instagram <span class="count" id="cnt-instagram"></span></button>
+      <button class="filter-chip" data-filter="tiktok" onclick="setFilter('tiktok',this)">🎵 TikTok <span class="count" id="cnt-tiktok"></span></button>
+      <button class="filter-chip" data-filter="video" onclick="setFilter('video',this)">🎬 Video <span class="count" id="cnt-video"></span></button>
+      <button class="filter-chip" data-filter="image" onclick="setFilter('image',this)">🖼️ Image <span class="count" id="cnt-image"></span></button>
+      <button class="filter-chip" data-filter="document" onclick="setFilter('document',this)">📄 Doc <span class="count" id="cnt-document"></span></button>
+    </div>
+  </div>
+
+  <!-- Results bar -->
+  <div class="results-bar">
+    <div class="results-count" id="resultsCount"></div>
+    <button class="clear-btn" onclick="clearAll()">🗑️ Clear all history</button>
+  </div>
+
+  <!-- List -->
   <div class="dl-list" id="dlList"></div>
+
+  <!-- Pagination -->
   <div class="pagination" id="pagination"></div>
+
 </div>
+
 <script>
 const ICONS={youtube:'▶️',instagram:'📸',tiktok:'🎵',twitter:'🐦',facebook:'📘',reddit:'🤖',vimeo:'🎬',pinterest:'📌',direct:'🔗',image:'🖼️',video:'🎬',audio:'🎵',document:'📄',unknown:'🔗'};
 const PER_PAGE=10;
-let currentPage=1,currentFilter='all',currentSearch='';
+let currentPage=1,currentFilter='all',currentSearch='',currentSort='newest';
 let isDark=localStorage.getItem('smf_theme')!=='light';
-function applyTheme(){document.documentElement.setAttribute('data-theme',isDark?'dark':'light');document.getElementById('themeBtn').textContent=isDark?'🌙':'☀️';}
+
+function applyTheme(){
+  document.documentElement.setAttribute('data-theme',isDark?'dark':'light');
+  document.getElementById('themeBtn').textContent=isDark?'🌙':'☀️';
+}
 applyTheme();
 document.getElementById('themeBtn').onclick=()=>{isDark=!isDark;localStorage.setItem('smf_theme',isDark?'dark':'light');applyTheme();};
-function getHistoryKey(){const t=localStorage.getItem('smf_token');if(!t)return null;const u=localStorage.getItem('smf_user');if(u){try{const p=JSON.parse(u);return'smf_history_'+(p.username||p.email||'user').replace(/[^a-z0-9]/gi,'_');}catch(e){}}return'smf_history_user';}
-function getHistory(){const k=getHistoryKey();if(!k)return[];return JSON.parse(localStorage.getItem(k)||'[]');}
-function getBadge(i){const t=(i.media_type||i.platform||'').toLowerCase();if(t.includes('audio')||t.includes('mp3'))return'audio';if(t.includes('image')||t.includes('png')||t.includes('jpg'))return'image';if(t.includes('document')||t.includes('pdf'))return'document';return'video';}
-function timeAgo(ts){const s=Math.floor((Date.now()-ts)/1000);if(s<60)return'Just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';if(s<604800)return Math.floor(s/86400)+'d ago';return new Date(ts).toLocaleDateString();}
-function formatSize(b){if(!b||b===0)return'';if(b<1024*1024)return(b/1024).toFixed(1)+' KB';return(b/(1024*1024)).toFixed(1)+' MB';}
-function setFilter(f,btn){currentFilter=f;currentPage=1;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');render();}
-function applyFilters(){currentSearch=document.getElementById('searchInput').value.toLowerCase();currentPage=1;render();}
-function clearAll(){if(!confirm('Clear all download history?'))return;const k=getHistoryKey();if(k)localStorage.setItem(k,'[]');render();}
-function deleteItem(index){const k=getHistoryKey();if(!k)return;const items=getHistory();items.splice(index,1);localStorage.setItem(k,JSON.stringify(items));render();}
+
+function getHistoryKey(){
+  const t=localStorage.getItem('smf_token');
+  if(!t)return null;
+  const u=localStorage.getItem('smf_user');
+  if(u){try{const p=JSON.parse(u);return'smf_history_'+(p.username||p.email||'user').replace(/[^a-z0-9]/gi,'_');}catch(e){}}
+  return'smf_history_user';
+}
+
+function getHistory(){
+  const k=getHistoryKey();
+  if(!k)return[];
+  return JSON.parse(localStorage.getItem(k)||'[]');
+}
+
+function getBadge(i){
+  const t=(i.media_type||i.platform||'').toLowerCase();
+  if(t.includes('audio')||t.includes('mp3'))return'audio';
+  if(t.includes('image')||t.includes('png')||t.includes('jpg'))return'image';
+  if(t.includes('document')||t.includes('pdf'))return'document';
+  return'video';
+}
+
+function timeAgo(ts){
+  const s=Math.floor((Date.now()-ts)/1000);
+  if(s<60)return'Just now';
+  if(s<3600)return Math.floor(s/60)+'m ago';
+  if(s<86400)return Math.floor(s/3600)+'h ago';
+  if(s<604800)return Math.floor(s/86400)+'d ago';
+  return new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+
+function formatSize(b){
+  if(!b||b===0)return'';
+  if(b<1024)return b+'B';
+  if(b<1024*1024)return(b/1024).toFixed(1)+'KB';
+  return(b/(1024*1024)).toFixed(1)+'MB';
+}
+
+function totalSize(items){
+  const total=items.reduce((s,i)=>s+(i.file_size||0),0);
+  if(total===0)return'—';
+  if(total<1024*1024)return(total/1024).toFixed(0)+' KB';
+  if(total<1024*1024*1024)return(total/(1024*1024)).toFixed(1)+' MB';
+  return(total/(1024*1024*1024)).toFixed(2)+' GB';
+}
+
+function setFilter(f,btn){
+  currentFilter=f;currentPage=1;
+  document.querySelectorAll('.filter-chip').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderList();
+}
+
+function applyFilters(){
+  currentSearch=document.getElementById('searchInput').value.toLowerCase();
+  currentSort=document.getElementById('sortSelect').value;
+  currentPage=1;
+  renderList();
+}
+
+function clearAll(){
+  if(!confirm('Clear all download history? This cannot be undone.'))return;
+  const k=getHistoryKey();
+  if(k)localStorage.setItem(k,'[]');
+  renderPage();
+}
+
+function deleteItem(idx){
+  const k=getHistoryKey();
+  if(!k)return;
+  const items=getHistory();
+  items.splice(idx,1);
+  localStorage.setItem(k,JSON.stringify(items));
+  renderPage();
+}
+
 function refetch(url){window.location.href='/?url='+encodeURIComponent(url);}
-function renderStats(items){const total=items.length,videos=items.filter(i=>getBadge(i)==='video').length,images=items.filter(i=>getBadge(i)==='image').length,docs=items.filter(i=>getBadge(i)==='document').length;document.getElementById('statsGrid').innerHTML=`<div class="stat-card"><div class="stat-icon">📦</div><div class="stat-num">${total}</div><div class="stat-label">Total</div></div><div class="stat-card"><div class="stat-icon">🎬</div><div class="stat-num">${videos}</div><div class="stat-label">Videos</div></div><div class="stat-card"><div class="stat-icon">🖼️</div><div class="stat-num">${images}</div><div class="stat-label">Images</div></div><div class="stat-card"><div class="stat-icon">📄</div><div class="stat-num">${docs}</div><div class="stat-label">Documents</div></div>`;}
-function render(){
-  const token=localStorage.getItem('smf_token');
+
+function renderStats(allItems){
+  const total=allItems.length;
+  const videos=allItems.filter(i=>getBadge(i)==='video').length;
+  const images=allItems.filter(i=>getBadge(i)==='image').length;
+  const size=totalSize(allItems);
+
+  // Count this week
+  const weekAgo=Date.now()-7*86400*1000;
+  const thisWeek=allItems.filter(i=>i.time>weekAgo).length;
+  const weekPct=total>0?Math.round((thisWeek/total)*100):0;
+
+  document.getElementById('statsGrid').innerHTML=`
+    <div class="stat-card s-total">
+      <div class="stat-icon">📦</div>
+      <div class="stat-num">${total}</div>
+      <div class="stat-label">Total Downloads</div>
+      <div class="stat-change ${thisWeek>0?'up':'neutral'}">${thisWeek>0?'↑ '+thisWeek+' this week':'No downloads this week'}</div>
+    </div>
+    <div class="stat-card s-video">
+      <div class="stat-icon">🎬</div>
+      <div class="stat-num">${videos}</div>
+      <div class="stat-label">Videos</div>
+      <div class="stat-change neutral">${total>0?Math.round((videos/total)*100):0}% of total</div>
+    </div>
+    <div class="stat-card s-image">
+      <div class="stat-icon">🖼️</div>
+      <div class="stat-num">${images}</div>
+      <div class="stat-label">Images & Docs</div>
+      <div class="stat-change neutral">${total>0?Math.round(((allItems.length-videos)/total)*100):0}% of total</div>
+    </div>
+    <div class="stat-card s-size">
+      <div class="stat-icon">💾</div>
+      <div class="stat-num" style="font-size:${size.length>5?'18px':'26px'}">${size}</div>
+      <div class="stat-label">Data Saved</div>
+      <div class="stat-change neutral">Across all files</div>
+    </div>`;
+
+  updateFilterCounts(allItems);
+}
+
+function updateFilterCounts(items){
+  const counts={
+    all:items.length,
+    youtube:items.filter(i=>(i.platform||'').toLowerCase().includes('youtube')).length,
+    instagram:items.filter(i=>(i.platform||'').toLowerCase().includes('instagram')).length,
+    tiktok:items.filter(i=>(i.platform||'').toLowerCase().includes('tiktok')).length,
+    video:items.filter(i=>getBadge(i)==='video').length,
+    image:items.filter(i=>getBadge(i)==='image').length,
+    document:items.filter(i=>getBadge(i)==='document').length,
+  };
+  Object.keys(counts).forEach(k=>{
+    const el=document.getElementById('cnt-'+k);
+    if(el)el.textContent=counts[k]>0?'('+counts[k]+')':'';
+  });
+}
+
+function renderChart(allItems){
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const today=new Date();
+  const weekData=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date(today);d.setDate(d.getDate()-i);
+    const dayStart=new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime();
+    const dayEnd=dayStart+86400000;
+    const total=allItems.filter(x=>x.time>=dayStart&&x.time<dayEnd).length;
+    const videos=allItems.filter(x=>x.time>=dayStart&&x.time<dayEnd&&getBadge(x)==='video').length;
+    weekData.push({label:days[d.getDay()],total,videos,isToday:i===0});
+  }
+  const maxVal=Math.max(...weekData.map(d=>d.total),1);
+
+  // Y axis
+  const yAxis=document.getElementById('yAxis');
+  yAxis.innerHTML=['',Math.ceil(maxVal/2),maxVal].reverse().map(v=>`<div class="chart-ylabel">${v}</div>`).join('');
+
+  // Bars
+  const inner=document.getElementById('chartInner');
+  inner.innerHTML=weekData.map(d=>{
+    const totalH=Math.max((d.total/maxVal)*100,d.total>0?8:0);
+    const videoH=Math.max((d.videos/maxVal)*100,d.videos>0?8:0);
+    return`<div class="chart-bar-group" style="flex:1;display:flex;align-items:flex-end;gap:2px;position:relative;padding-bottom:24px;">
+      <div class="chart-bar total-bar" style="flex:1;height:${totalH}%;${d.isToday?'opacity:0.6':''}"></div>
+      <div class="chart-bar video-bar" style="flex:1;height:${videoH}%;${d.isToday?'':''}"></div>
+      <div class="chart-day" style="${d.isToday?'color:var(--amber);font-weight:700':''}">${d.label}</div>
+    </div>`;
+  }).join('');
+}
+
+function sortItems(items){
+  const sorted=[...items];
+  switch(currentSort){
+    case'oldest': return sorted.sort((a,b)=>a.time-b.time);
+    case'largest': return sorted.sort((a,b)=>(b.file_size||0)-(a.file_size||0));
+    case'smallest': return sorted.sort((a,b)=>(a.file_size||0)-(b.file_size||0));
+    case'platform': return sorted.sort((a,b)=>(a.platform||'').localeCompare(b.platform||''));
+    default: return sorted.sort((a,b)=>b.time-a.time);
+  }
+}
+
+function renderList(){
   const list=document.getElementById('dlList');
-  const pages=document.getElementById('pagination');
-  if(!token){list.innerHTML='<div class="empty"><div class="empty-icon">🔒</div><div class="empty-title">Sign in to view downloads</div><div class="empty-sub">Your download history is saved per account.</div><a href="/" class="go-home">← Go back and log in</a></div>';pages.innerHTML='';document.getElementById('statsGrid').innerHTML='';return;}
+  const pag=document.getElementById('pagination');
+  const rc=document.getElementById('resultsCount');
+
   let items=getHistory();
-  renderStats(items);
-  if(currentFilter!=='all')items=items.filter(i=>{const p=(i.platform||'').toLowerCase();if(currentFilter==='video')return getBadge(i)==='video';if(currentFilter==='image')return getBadge(i)==='image';if(currentFilter==='document')return getBadge(i)==='document';return p.includes(currentFilter);});
-  if(currentSearch)items=items.filter(i=>(i.title||i.url||'').toLowerCase().includes(currentSearch)||(i.platform||'').toLowerCase().includes(currentSearch));
-  if(items.length===0){list.innerHTML='<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">'+(currentSearch?'No results found':'No downloads yet')+'</div><div class="empty-sub">'+(currentSearch?'Try a different search term.':'Start downloading and your history appears here.')+'</div><a href="/" class="go-home">↓ Start Downloading</a></div>';pages.innerHTML='';return;}
+
+  // Filter by platform/type
+  if(currentFilter!=='all'){
+    items=items.filter(i=>{
+      const p=(i.platform||'').toLowerCase();
+      if(currentFilter==='video')return getBadge(i)==='video';
+      if(currentFilter==='image')return getBadge(i)==='image';
+      if(currentFilter==='document')return getBadge(i)==='document';
+      return p.includes(currentFilter);
+    });
+  }
+
+  // Search
+  if(currentSearch){
+    items=items.filter(i=>
+      (i.title||i.url||'').toLowerCase().includes(currentSearch)||
+      (i.platform||'').toLowerCase().includes(currentSearch)
+    );
+  }
+
+  // Sort
+  items=sortItems(items);
+
+  rc.innerHTML=`Showing <strong>${Math.min(PER_PAGE,items.length)}</strong> of <strong>${items.length}</strong> downloads`;
+
+  if(items.length===0){
+    list.innerHTML=`<div class="empty">
+      <div class="empty-icon">${currentSearch?'🔍':'📭'}</div>
+      <div class="empty-title">${currentSearch?'No results for "'+currentSearch+'"':'No downloads yet'}</div>
+      <div class="empty-sub">${currentSearch?'Try a different search term or clear the filter.':'Start downloading media and your history will appear here.'}</div>
+      <a href="/" class="cta-btn">↓ Start Downloading</a>
+    </div>`;
+    pag.innerHTML='';return;
+  }
+
+  // Paginate
   const totalPages=Math.ceil(items.length/PER_PAGE);
   const start=(currentPage-1)*PER_PAGE;
   const pageItems=items.slice(start,start+PER_PAGE);
+
   list.innerHTML=pageItems.map((item,i)=>{
     const ri=start+i;
     const platform=(item.platform||'unknown').toLowerCase();
@@ -134,14 +462,70 @@ function render(){
     const badge=getBadge(item);
     const title=item.title||item.url?.split('/').pop()||'Unknown';
     const size=formatSize(item.file_size);
-    const url=(item.url||'').replace(/^https?:\/\/(www\.)?/,'').substring(0,60);
-    const safeUrl=(item.url||'').replace(/'/g,"\\'");
-    return`<div class="dl-card" onclick="refetch('${safeUrl}')"><div class="dl-icon">${icon}</div><div class="dl-info"><div class="dl-title" title="${title}">${title}</div><div class="dl-meta"><span class="dl-platform">${platform}</span><span class="dl-time">${timeAgo(item.time)}</span>${size?`<span class="dl-time">${size}</span>`:''}</div><div class="dl-url">${url}</div></div><span class="dl-badge ${badge}">${badge.toUpperCase()}</span><div class="dl-actions"><button class="action-btn" title="Re-fetch" onclick="event.stopPropagation();refetch('${safeUrl}')">↩</button><button class="action-btn danger" title="Delete" onclick="event.stopPropagation();deleteItem(${ri})">🗑️</button></div></div>`;
+    const url=(item.url||'').replace(/^https?:\/\/(www\.)?/,'').substring(0,55);
+    const safe=(item.url||'').replace(/'/g,"\\'");
+    return`<div class="dl-card" onclick="refetch('${safe}')">
+      <div class="dl-card-inner">
+        <div class="dl-thumb">${icon}</div>
+        <div class="dl-content">
+          <div class="dl-title" title="${title}">${title}</div>
+          <div class="dl-meta-row">
+            <span class="platform-badge">${platform}</span>
+            <span class="type-badge ${badge}">${badge.toUpperCase()}</span>
+            ${size?`<span class="dl-size">${size}</span>`:''}
+            <span class="dl-time">${timeAgo(item.time)}</span>
+          </div>
+          <div class="dl-url">${url}</div>
+        </div>
+        <div class="dl-actions">
+          <button class="act-btn" title="Re-fetch" onclick="event.stopPropagation();refetch('${safe}')">↩</button>
+          <button class="act-btn del" title="Delete" onclick="event.stopPropagation();deleteItem(${ri})">✕</button>
+        </div>
+      </div>
+      <div class="dl-progress"><div class="dl-progress-fill"></div></div>
+    </div>`;
   }).join('');
-  if(totalPages>1){let h='';if(currentPage>1)h+=`<button class="page-btn" onclick="goPage(${currentPage-1})">←</button>`;for(let p=1;p<=totalPages;p++)h+=`<button class="page-btn ${p===currentPage?'active':''}" onclick="goPage(${p})">${p}</button>`;if(currentPage<totalPages)h+=`<button class="page-btn" onclick="goPage(${currentPage+1})">→</button>`;pages.innerHTML=h;}else pages.innerHTML='';
+
+  // Pagination
+  if(totalPages>1){
+    let h='';
+    if(currentPage>1)h+=`<button class="pg-btn" onclick="goPage(${currentPage-1})">←</button>`;
+    const start2=Math.max(1,currentPage-2);
+    const end2=Math.min(totalPages,currentPage+2);
+    if(start2>1){h+=`<button class="pg-btn" onclick="goPage(1)">1</button>`;if(start2>2)h+=`<span class="pg-info">…</span>`;}
+    for(let p=start2;p<=end2;p++)h+=`<button class="pg-btn ${p===currentPage?'active':''}" onclick="goPage(${p})">${p}</button>`;
+    if(end2<totalPages){if(end2<totalPages-1)h+=`<span class="pg-info">…</span>`;h+=`<button class="pg-btn" onclick="goPage(${totalPages})">${totalPages}</button>`;}
+    if(currentPage<totalPages)h+=`<button class="pg-btn" onclick="goPage(${currentPage+1})">→</button>`;
+    h+=`<span class="pg-info">${currentPage} / ${totalPages}</span>`;
+    pag.innerHTML=h;
+  }else{pag.innerHTML='';}
 }
-function goPage(p){currentPage=p;render();window.scrollTo({top:0,behavior:'smooth'});}
-render();
+
+function goPage(p){currentPage=p;renderList();window.scrollTo({top:0,behavior:'smooth'});}
+
+function renderPage(){
+  const token=localStorage.getItem('smf_token');
+  const list=document.getElementById('dlList');
+  if(!token){
+    document.getElementById('statsGrid').innerHTML='';
+    document.getElementById('chartCard').style.display='none';
+    document.querySelector('.toolbar').style.display='none';
+    document.querySelector('.results-bar').style.display='none';
+    list.innerHTML=`<div class="empty">
+      <div class="empty-icon">🔒</div>
+      <div class="empty-title">Sign in to view your downloads</div>
+      <div class="empty-sub">Your download history is private and saved per account.</div>
+      <a href="/" class="cta-btn">← Go back and sign in</a>
+    </div>`;
+    return;
+  }
+  const allItems=getHistory();
+  renderStats(allItems);
+  renderChart(allItems);
+  renderList();
+}
+
+renderPage();
 </script>
 </body>
 </html>
