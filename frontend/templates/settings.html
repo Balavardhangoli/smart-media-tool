@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Settings — Smart Media Fetcher</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#0c0c0f;--bg2:#111116;--surface:#16161e;--card:#1a1a24;--border:rgba(255,255,255,0.06);--border-hi:rgba(255,200,70,0.3);--amber:#fbbf24;--amber-dim:rgba(251,191,36,0.12);--green:#34d399;--red:#f87171;--text:#e8e8ee;--text-2:#9999b3;--text-3:#55556e;--radius:16px;}
+[data-theme="light"]{--bg:#f5f5f8;--bg2:#ebebf0;--surface:#ffffff;--card:#fafafa;--border:rgba(0,0,0,0.08);--text:#1a1a2e;--text-2:#555570;--text-3:#aaaacc;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Cabinet Grotesk',sans-serif;min-height:100vh;}
+.wrapper{max-width:760px;margin:0 auto;padding:32px 20px;}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;}
+.back-btn{display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;font-size:13px;font-weight:600;font-family:'Cabinet Grotesk',sans-serif;text-decoration:none;transition:all 0.2s;}
+.back-btn:hover{border-color:var(--amber);color:var(--amber);}
+.page-title{font-size:24px;font-weight:800;}
+.page-title span{color:var(--amber);}
+.theme-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;display:grid;place-items:center;font-size:16px;transition:all 0.2s;}
+.theme-btn:hover{border-color:var(--amber);}
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:4px;margin-bottom:28px;}
+.tab-btn{flex:1;padding:10px;border-radius:10px;border:none;background:none;color:var(--text-2);font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;font-family:'Cabinet Grotesk',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{background:var(--card);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,0.2);}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+.section{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:16px;}
+.section-head{display:flex;align-items:center;gap:10px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);}
+.section-icon{width:36px;height:36px;border-radius:10px;background:var(--amber-dim);display:grid;place-items:center;font-size:18px;}
+.section-title{font-size:16px;font-weight:800;}
+.section-sub{font-size:12px;color:var(--text-2);margin-top:2px;}
+.avatar-row{display:flex;align-items:center;gap:20px;margin-bottom:20px;}
+.avatar-big{width:72px;height:72px;border-radius:18px;display:grid;place-items:center;font-size:28px;font-weight:900;color:#0c0c0f;flex-shrink:0;}
+.avatar-info h3{font-size:18px;font-weight:800;}
+.avatar-info p{font-size:13px;color:var(--text-2);margin-top:4px;}
+.color-picker{display:flex;gap:8px;margin-top:12px;}
+.color-dot{width:26px;height:26px;border-radius:8px;cursor:pointer;border:2px solid transparent;transition:all 0.2s;}
+.color-dot:hover,.color-dot.selected{border-color:white;transform:scale(1.1);}
+.field{margin-bottom:16px;}
+.field-label{font-size:12px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;display:block;}
+.field-input{width:100%;padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-family:'Cabinet Grotesk',sans-serif;outline:none;transition:border-color 0.2s;}
+.field-input:focus{border-color:var(--amber);}
+.field-input:disabled{opacity:0.5;cursor:not-allowed;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.field-select{width:100%;padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-family:'Cabinet Grotesk',sans-serif;outline:none;cursor:pointer;transition:border-color 0.2s;}
+.field-select:focus{border-color:var(--amber);}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border);}
+.toggle-row:last-child{border-bottom:none;padding-bottom:0;}
+.toggle-info h4{font-size:14px;font-weight:700;}
+.toggle-info p{font-size:12px;color:var(--text-2);margin-top:3px;}
+.toggle{width:44px;height:24px;background:var(--border);border-radius:100px;cursor:pointer;position:relative;transition:background 0.2s;border:none;flex-shrink:0;}
+.toggle.on{background:var(--amber);}
+.toggle::after{content:'';position:absolute;width:18px;height:18px;background:white;border-radius:50%;top:3px;left:3px;transition:transform 0.2s;}
+.toggle.on::after{transform:translateX(20px);}
+.accent-grid{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
+.accent-btn{width:36px;height:36px;border-radius:10px;border:3px solid transparent;cursor:pointer;transition:all 0.2s;}
+.accent-btn:hover,.accent-btn.selected{border-color:white;transform:scale(1.1);}
+.save-btn{width:100%;padding:13px;border-radius:12px;background:var(--amber);border:none;color:#0c0c0f;font-size:14px;font-weight:700;cursor:pointer;font-family:'Cabinet Grotesk',sans-serif;transition:background 0.2s;margin-top:20px;}
+.save-btn:hover{background:#f59e0b;}
+.strength-bar{height:4px;border-radius:2px;background:var(--border);margin-top:6px;overflow:hidden;}
+.strength-fill{height:100%;border-radius:2px;transition:all 0.3s;width:0;}
+.strength-text{font-size:11px;margin-top:4px;}
+.danger-section{background:rgba(248,113,113,0.05);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius);padding:24px;margin-bottom:16px;}
+.danger-title{font-size:16px;font-weight:800;color:var(--red);}
+.danger-btn{width:100%;padding:13px;border-radius:12px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);color:var(--red);font-size:14px;font-weight:700;cursor:pointer;font-family:'Cabinet Grotesk',sans-serif;transition:all 0.2s;margin-top:8px;}
+.danger-btn:hover{background:rgba(248,113,113,0.2);}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 24px;font-size:14px;font-weight:600;box-shadow:0 8px 32px rgba(0,0,0,0.3);transition:transform 0.3s;z-index:9999;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.toast.success{border-color:rgba(52,211,153,0.4);color:var(--green);}
+.toast.error{border-color:rgba(248,113,113,0.4);color:var(--red);}
+.go-home{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:12px;background:var(--amber);color:#0c0c0f;font-size:14px;font-weight:700;text-decoration:none;}
+@media(max-width:580px){.tabs{flex-wrap:wrap;}.tab-btn{flex:none;width:calc(50% - 4px);}.field-row{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="page-header">
+    <a href="/" class="back-btn">← Back</a>
+    <h1 class="page-title">⚙️ <span>Settings</span></h1>
+    <button class="theme-btn" id="themeBtn">🌙</button>
+  </div>
+  <div id="mainContent"></div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const API='/api/v1';
+let isDark=localStorage.getItem('smf_theme')!=='light';
+let prefs=JSON.parse(localStorage.getItem('smf_prefs')||'{}');
+let selectedColor=prefs.avatarColor||'#fbbf24';
+const COLORS=['#fbbf24','#38bdf8','#34d399','#a78bfa','#f87171','#fb923c','#ec4899'];
+const ACCENTS=['#fbbf24','#38bdf8','#34d399','#a78bfa','#f87171','#fb923c'];
+
+function applyTheme(){document.documentElement.setAttribute('data-theme',isDark?'dark':'light');document.getElementById('themeBtn').textContent=isDark?'🌙':'☀️';localStorage.setItem('smf_theme',isDark?'dark':'light');}
+applyTheme();
+document.getElementById('themeBtn').onclick=()=>{isDark=!isDark;applyTheme();const s=document.getElementById('themeSelect');if(s)s.value=isDark?'dark':'light';};
+
+function showToast(msg,type='success'){const t=document.getElementById('toast');t.textContent=(type==='success'?'✅ ':'❌ ')+msg;t.className=`toast ${type} show`;setTimeout(()=>t.classList.remove('show'),3000);}
+function getUser(){try{return JSON.parse(localStorage.getItem('smf_user')||'{}');}catch(e){return{};}}
+function getToken(){return localStorage.getItem('smf_token');}
+function switchTab(tab){document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));document.querySelectorAll('.tab-content').forEach(c=>c.classList.toggle('active',c.id==='tab-'+tab));}
+function pickColor(c){selectedColor=c;document.getElementById('avatarPreview').style.background=c;document.querySelectorAll('.color-dot').forEach(d=>d.classList.toggle('selected',d.getAttribute('data-color')===c));prefs.avatarColor=c;}
+function pickAccent(c,btn){prefs.accent=c;document.querySelectorAll('.accent-btn').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');}
+function togglePref(key,btn){btn.classList.toggle('on');prefs[key]=btn.classList.contains('on');}
+function checkStrength(val){const fill=document.getElementById('strengthFill');const text=document.getElementById('strengthText');if(!val){fill.style.width='0';text.textContent='';return;}let score=0;if(val.length>=8)score++;if(/[A-Z]/.test(val))score++;if(/[0-9]/.test(val))score++;if(/[^A-Za-z0-9]/.test(val))score++;const levels=[{w:'25%',c:'#f87171',l:'Weak'},{w:'50%',c:'#fb923c',l:'Fair'},{w:'75%',c:'#fbbf24',l:'Good'},{w:'100%',c:'#34d399',l:'Strong ✅'}];const lv=levels[score-1]||levels[0];fill.style.width=lv.w;fill.style.background=lv.c;text.style.color=lv.c;text.textContent=lv.l;}
+function changeTheme(val){isDark=val==='dark';applyTheme();}
+
+async function saveProfile(){
+  const username=document.getElementById('usernameInput').value.trim();
+  if(!username){showToast('Username cannot be empty','error');return;}
+  const user=getUser();user.username=username;user.avatarColor=selectedColor;
+  localStorage.setItem('smf_user',JSON.stringify(user));
+  showToast('Profile saved!');
+}
+
+async function changePassword(){
+  const current=document.getElementById('currentPass').value;
+  const newP=document.getElementById('newPass').value;
+  const confirm=document.getElementById('confirmPass').value;
+  if(!current){showToast('Enter current password','error');return;}
+  if(newP.length<8){showToast('Password needs 8+ characters','error');return;}
+  if(!/[A-Z]/.test(newP)){showToast('Add at least 1 uppercase letter','error');return;}
+  if(!/[0-9]/.test(newP)){showToast('Add at least 1 number','error');return;}
+  if(newP!==confirm){showToast('Passwords do not match','error');return;}
+  try{
+    const res=await fetch(`${API}/auth/change-password`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${getToken()}`},body:JSON.stringify({current_password:current,new_password:newP})});
+    if(!res.ok){const d=await res.json();throw new Error(d.detail||'Failed');}
+    showToast('Password updated!');
+    ['currentPass','newPass','confirmPass'].forEach(id=>document.getElementById(id).value='');
+  }catch(e){showToast(e.message,'error');}
+}
+
+function savePrefs(){
+  prefs.quality=document.getElementById('prefQuality').value;
+  prefs.format=document.getElementById('prefFormat').value;
+  localStorage.setItem('smf_prefs',JSON.stringify(prefs));
+  showToast('Preferences saved!');
+}
+
+function saveAppearance(){localStorage.setItem('smf_prefs',JSON.stringify(prefs));showToast('Appearance saved!');}
+
+function clearHistory(){
+  if(!confirm('Clear all download history?'))return;
+  const user=getUser();
+  const key='smf_history_'+(user.username||user.email||'user').replace(/[^a-z0-9]/gi,'_');
+  localStorage.setItem(key,'[]');
+  showToast('History cleared!');
+}
+
+async function deleteAccount(){
+  const confirmed=prompt('Type DELETE to confirm:');
+  if(confirmed!=='DELETE'){showToast('Cancelled','error');return;}
+  try{
+    const res=await fetch(`${API}/auth/delete-account`,{method:'DELETE',headers:{Authorization:`Bearer ${getToken()}`}});
+    if(!res.ok)throw new Error('Failed');
+    localStorage.clear();alert('Account deleted.');window.location.href='/';
+  }catch(e){showToast('Could not delete account','error');}
+}
+
+function renderPage(){
+  const token=getToken();
+  const content=document.getElementById('mainContent');
+  if(!token){content.innerHTML='<div style="text-align:center;padding:80px 20px"><h2 style="font-size:22px;font-weight:800;margin-bottom:12px">🔒 Sign in to access settings</h2><p style="color:var(--text-2);margin-bottom:24px">You need to be logged in.</p><a href="/" class="go-home">← Go back and log in</a></div>';return;}
+  const user=getUser();
+  const username=user.username||'User';
+  const email=user.email||'';
+  const initial=username.charAt(0).toUpperCase();
+  const accent=prefs.accent||'#fbbf24';
+  content.innerHTML=`
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="profile" onclick="switchTab('profile')">👤 Profile</button>
+      <button class="tab-btn" data-tab="security" onclick="switchTab('security')">🔒 Security</button>
+      <button class="tab-btn" data-tab="prefs" onclick="switchTab('prefs')">⬇️ Prefs</button>
+      <button class="tab-btn" data-tab="appearance" onclick="switchTab('appearance')">🎨 Appearance</button>
+      <button class="tab-btn" data-tab="danger" onclick="switchTab('danger')">☠️ Danger</button>
+    </div>
+    <div class="tab-content active" id="tab-profile">
+      <div class="section">
+        <div class="section-head"><div class="section-icon">👤</div><div><div class="section-title">Profile</div><div class="section-sub">Your public profile information</div></div></div>
+        <div class="avatar-row">
+          <div class="avatar-big" id="avatarPreview" style="background:${selectedColor}">${initial}</div>
+          <div class="avatar-info">
+            <h3 id="namePreview">${username}</h3><p>${email}</p>
+            <div class="color-picker">${COLORS.map(c=>`<div class="color-dot ${c===selectedColor?'selected':''}" data-color="${c}" style="background:${c}" onclick="pickColor('${c}')"></div>`).join('')}</div>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label class="field-label">Username</label><input class="field-input" id="usernameInput" value="${username}" oninput="document.getElementById('namePreview').textContent=this.value||'User'"/></div>
+          <div class="field"><label class="field-label">Email</label><input class="field-input" value="${email}" disabled/></div>
+        </div>
+        <button class="save-btn" onclick="saveProfile()">Save Profile</button>
+      </div>
+    </div>
+    <div class="tab-content" id="tab-security">
+      <div class="section">
+        <div class="section-head"><div class="section-icon">🔒</div><div><div class="section-title">Change Password</div><div class="section-sub">Keep your account secure</div></div></div>
+        <div class="field"><label class="field-label">Current Password</label><input class="field-input" id="currentPass" type="password" placeholder="Enter current password"/></div>
+        <div class="field"><label class="field-label">New Password</label><input class="field-input" id="newPass" type="password" placeholder="Min 8 chars, 1 uppercase, 1 number" oninput="checkStrength(this.value)"/><div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div><div class="strength-text" id="strengthText"></div></div>
+        <div class="field"><label class="field-label">Confirm Password</label><input class="field-input" id="confirmPass" type="password" placeholder="Repeat new password"/></div>
+        <button class="save-btn" onclick="changePassword()">Update Password</button>
+      </div>
+    </div>
+    <div class="tab-content" id="tab-prefs">
+      <div class="section">
+        <div class="section-head"><div class="section-icon">⬇️</div><div><div class="section-title">Download Preferences</div><div class="section-sub">Default settings for downloads</div></div></div>
+        <div class="field-row">
+          <div class="field"><label class="field-label">Default Quality</label><select class="field-select" id="prefQuality"><option value="best" ${(prefs.quality||'best')==='best'?'selected':''}>Best Available</option><option value="1080" ${prefs.quality==='1080'?'selected':''}>1080p HD</option><option value="720" ${prefs.quality==='720'?'selected':''}>720p</option><option value="480" ${prefs.quality==='480'?'selected':''}>480p</option></select></div>
+          <div class="field"><label class="field-label">Default Format</label><select class="field-select" id="prefFormat"><option value="auto" ${(prefs.format||'auto')==='auto'?'selected':''}>Auto Detect</option><option value="mp4" ${prefs.format==='mp4'?'selected':''}>MP4</option><option value="mp3" ${prefs.format==='mp3'?'selected':''}>MP3</option></select></div>
+        </div>
+        <div class="toggle-row"><div class="toggle-info"><h4>Save download history</h4><p>Keep a record of your downloads</p></div><button class="toggle ${prefs.saveHistory!==false?'on':''}" onclick="togglePref('saveHistory',this)"></button></div>
+        <div class="toggle-row"><div class="toggle-info"><h4>Auto-detect platform</h4><p>Show platform badge as you type</p></div><button class="toggle ${prefs.autoDetect!==false?'on':''}" onclick="togglePref('autoDetect',this)"></button></div>
+        <div class="toggle-row"><div class="toggle-info"><h4>Show file sizes</h4><p>Display file size when available</p></div><button class="toggle ${prefs.showSize!==false?'on':''}" onclick="togglePref('showSize',this)"></button></div>
+        <button class="save-btn" onclick="savePrefs()">Save Preferences</button>
+      </div>
+    </div>
+    <div class="tab-content" id="tab-appearance">
+      <div class="section">
+        <div class="section-head"><div class="section-icon">🎨</div><div><div class="section-title">Appearance</div><div class="section-sub">Customize how the app looks</div></div></div>
+        <div class="field"><label class="field-label">Theme</label><select class="field-select" id="themeSelect" onchange="changeTheme(this.value)"><option value="dark" ${isDark?'selected':''}>🌙 Dark</option><option value="light" ${!isDark?'selected':''}>☀️ Light</option></select></div>
+        <div class="field"><label class="field-label">Accent Color</label><div class="accent-grid">${ACCENTS.map(c=>`<button class="accent-btn ${c===accent?'selected':''}" style="background:${c}" onclick="pickAccent('${c}',this)"></button>`).join('')}</div></div>
+        <button class="save-btn" onclick="saveAppearance()">Save Appearance</button>
+      </div>
+    </div>
+    <div class="tab-content" id="tab-danger">
+      <div class="danger-section">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px"><span style="font-size:24px">⚠️</span><div class="danger-title">Danger Zone</div></div>
+        <p style="font-size:13px;color:var(--text-2);margin-bottom:8px">These actions are permanent and cannot be undone.</p>
+        <button class="danger-btn" onclick="clearHistory()">🗑️ Clear all download history</button>
+        <button class="danger-btn" onclick="deleteAccount()">💀 Delete my account permanently</button>
+      </div>
+    </div>`;
+}
+renderPage();
+</script>
+</body>
+</html>
