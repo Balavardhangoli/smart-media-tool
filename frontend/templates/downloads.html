@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>My Downloads — Smart Media Fetcher</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#0c0c0f;--bg2:#111116;--surface:#16161e;--card:#1a1a24;--border:rgba(255,255,255,0.06);--border-hi:rgba(255,200,70,0.3);--amber:#fbbf24;--amber-dim:rgba(251,191,36,0.12);--blue:#38bdf8;--green:#34d399;--red:#f87171;--text:#e8e8ee;--text-2:#9999b3;--text-3:#55556e;--radius:16px;}
+[data-theme="light"]{--bg:#f5f5f8;--bg2:#ebebf0;--surface:#ffffff;--card:#fafafa;--border:rgba(0,0,0,0.08);--text:#1a1a2e;--text-2:#555570;--text-3:#aaaacc;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Cabinet Grotesk',sans-serif;min-height:100vh;}
+.wrapper{max-width:900px;margin:0 auto;padding:32px 20px;}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;}
+.back-btn{display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;font-size:13px;font-weight:600;font-family:'Cabinet Grotesk',sans-serif;text-decoration:none;transition:all 0.2s;}
+.back-btn:hover{border-color:var(--amber);color:var(--amber);}
+.page-title{font-size:24px;font-weight:800;}
+.page-title span{color:var(--amber);}
+.theme-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;display:grid;place-items:center;font-size:16px;transition:all 0.2s;}
+.theme-btn:hover{border-color:var(--amber);}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;transition:border-color 0.2s;}
+.stat-card:hover{border-color:var(--border-hi);}
+.stat-num{font-size:28px;font-weight:900;color:var(--amber);}
+.stat-label{font-size:12px;color:var(--text-2);margin-top:4px;font-weight:600;}
+.stat-icon{font-size:20px;margin-bottom:8px;}
+.toolbar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
+.search-wrap{flex:1;min-width:200px;position:relative;}
+.search-input{width:100%;padding:10px 14px 10px 40px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-family:'Cabinet Grotesk',sans-serif;outline:none;transition:border-color 0.2s;}
+.search-input:focus{border-color:var(--amber);}
+.search-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--text-3);}
+.filter-group{display:flex;gap:6px;flex-wrap:wrap;}
+.filter-btn{padding:8px 14px;border-radius:100px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;transition:all 0.2s;font-family:'Cabinet Grotesk',sans-serif;}
+.filter-btn:hover{border-color:var(--amber);color:var(--amber);}
+.filter-btn.active{background:var(--amber);border-color:var(--amber);color:#0c0c0f;}
+.clear-btn{padding:8px 16px;border-radius:10px;font-size:12px;font-weight:600;border:1px solid rgba(248,113,113,0.3);background:rgba(248,113,113,0.08);color:var(--red);cursor:pointer;transition:all 0.2s;font-family:'Cabinet Grotesk',sans-serif;}
+.clear-btn:hover{background:rgba(248,113,113,0.15);}
+.dl-list{display:flex;flex-direction:column;gap:10px;}
+.dl-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;display:flex;align-items:center;gap:16px;transition:all 0.2s;cursor:pointer;}
+.dl-card:hover{border-color:var(--border-hi);transform:translateY(-1px);}
+.dl-icon{width:48px;height:48px;border-radius:12px;background:var(--surface);border:1px solid var(--border);display:grid;place-items:center;font-size:22px;flex-shrink:0;}
+.dl-info{flex:1;min-width:0;}
+.dl-title{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px;}
+.dl-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.dl-platform{font-size:11px;font-weight:700;color:var(--amber);background:var(--amber-dim);padding:3px 10px;border-radius:100px;}
+.dl-time{font-size:11px;color:var(--text-3);}
+.dl-url{font-size:11px;color:var(--text-3);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:'JetBrains Mono',monospace;}
+.dl-badge{font-size:10px;font-weight:700;padding:4px 10px;border-radius:100px;border:1px solid;flex-shrink:0;}
+.dl-badge.video{color:#38bdf8;border-color:rgba(56,189,248,0.3);background:rgba(56,189,248,0.08);}
+.dl-badge.audio{color:#a78bfa;border-color:rgba(167,139,250,0.3);background:rgba(167,139,250,0.08);}
+.dl-badge.image{color:#34d399;border-color:rgba(52,211,153,0.3);background:rgba(52,211,153,0.08);}
+.dl-badge.document{color:#fb923c;border-color:rgba(251,146,60,0.3);background:rgba(251,146,60,0.08);}
+.dl-actions{display:flex;gap:8px;flex-shrink:0;}
+.action-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;display:grid;place-items:center;font-size:15px;transition:all 0.2s;}
+.action-btn:hover{border-color:var(--amber);color:var(--amber);}
+.action-btn.danger:hover{border-color:var(--red);color:var(--red);}
+.empty{text-align:center;padding:80px 20px;}
+.empty-icon{font-size:64px;margin-bottom:20px;opacity:0.4;}
+.empty-title{font-size:20px;font-weight:800;color:var(--text-2);margin-bottom:10px;}
+.empty-sub{font-size:14px;color:var(--text-3);line-height:1.7;margin-bottom:24px;}
+.go-home{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:12px;background:var(--amber);color:#0c0c0f;font-size:14px;font-weight:700;text-decoration:none;transition:background 0.2s;}
+.go-home:hover{background:#f59e0b;}
+.pagination{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:28px;}
+.page-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;display:grid;place-items:center;font-size:13px;font-weight:600;font-family:'Cabinet Grotesk',sans-serif;transition:all 0.2s;}
+.page-btn:hover,.page-btn.active{border-color:var(--amber);color:var(--amber);}
+.page-btn.active{background:var(--amber-dim);}
+@media(max-width:600px){.stats-grid{grid-template-columns:repeat(2,1fr);}.toolbar{flex-direction:column;align-items:stretch;}.dl-card{flex-wrap:wrap;}}
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="page-header">
+    <a href="/" class="back-btn">← Back</a>
+    <h1 class="page-title">📥 My <span>Downloads</span></h1>
+    <button class="theme-btn" id="themeBtn">🌙</button>
+  </div>
+  <div class="stats-grid" id="statsGrid"></div>
+  <div class="toolbar">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" id="searchInput" placeholder="Search downloads..." oninput="applyFilters()"/>
+    </div>
+    <div class="filter-group">
+      <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+      <button class="filter-btn" onclick="setFilter('youtube',this)">▶️ YouTube</button>
+      <button class="filter-btn" onclick="setFilter('instagram',this)">📸 Instagram</button>
+      <button class="filter-btn" onclick="setFilter('tiktok',this)">🎵 TikTok</button>
+      <button class="filter-btn" onclick="setFilter('video',this)">🎬 Video</button>
+      <button class="filter-btn" onclick="setFilter('image',this)">🖼️ Image</button>
+      <button class="filter-btn" onclick="setFilter('document',this)">📄 Doc</button>
+    </div>
+    <button class="clear-btn" onclick="clearAll()">🗑️ Clear all</button>
+  </div>
+  <div class="dl-list" id="dlList"></div>
+  <div class="pagination" id="pagination"></div>
+</div>
+<script>
+const ICONS={youtube:'▶️',instagram:'📸',tiktok:'🎵',twitter:'🐦',facebook:'📘',reddit:'🤖',vimeo:'🎬',pinterest:'📌',direct:'🔗',image:'🖼️',video:'🎬',audio:'🎵',document:'📄',unknown:'🔗'};
+const PER_PAGE=10;
+let currentPage=1,currentFilter='all',currentSearch='';
+let isDark=localStorage.getItem('smf_theme')!=='light';
+function applyTheme(){document.documentElement.setAttribute('data-theme',isDark?'dark':'light');document.getElementById('themeBtn').textContent=isDark?'🌙':'☀️';}
+applyTheme();
+document.getElementById('themeBtn').onclick=()=>{isDark=!isDark;localStorage.setItem('smf_theme',isDark?'dark':'light');applyTheme();};
+function getHistoryKey(){const t=localStorage.getItem('smf_token');if(!t)return null;const u=localStorage.getItem('smf_user');if(u){try{const p=JSON.parse(u);return'smf_history_'+(p.username||p.email||'user').replace(/[^a-z0-9]/gi,'_');}catch(e){}}return'smf_history_user';}
+function getHistory(){const k=getHistoryKey();if(!k)return[];return JSON.parse(localStorage.getItem(k)||'[]');}
+function getBadge(i){const t=(i.media_type||i.platform||'').toLowerCase();if(t.includes('audio')||t.includes('mp3'))return'audio';if(t.includes('image')||t.includes('png')||t.includes('jpg'))return'image';if(t.includes('document')||t.includes('pdf'))return'document';return'video';}
+function timeAgo(ts){const s=Math.floor((Date.now()-ts)/1000);if(s<60)return'Just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';if(s<604800)return Math.floor(s/86400)+'d ago';return new Date(ts).toLocaleDateString();}
+function formatSize(b){if(!b||b===0)return'';if(b<1024*1024)return(b/1024).toFixed(1)+' KB';return(b/(1024*1024)).toFixed(1)+' MB';}
+function setFilter(f,btn){currentFilter=f;currentPage=1;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');render();}
+function applyFilters(){currentSearch=document.getElementById('searchInput').value.toLowerCase();currentPage=1;render();}
+function clearAll(){if(!confirm('Clear all download history?'))return;const k=getHistoryKey();if(k)localStorage.setItem(k,'[]');render();}
+function deleteItem(index){const k=getHistoryKey();if(!k)return;const items=getHistory();items.splice(index,1);localStorage.setItem(k,JSON.stringify(items));render();}
+function refetch(url){window.location.href='/?url='+encodeURIComponent(url);}
+function renderStats(items){const total=items.length,videos=items.filter(i=>getBadge(i)==='video').length,images=items.filter(i=>getBadge(i)==='image').length,docs=items.filter(i=>getBadge(i)==='document').length;document.getElementById('statsGrid').innerHTML=`<div class="stat-card"><div class="stat-icon">📦</div><div class="stat-num">${total}</div><div class="stat-label">Total</div></div><div class="stat-card"><div class="stat-icon">🎬</div><div class="stat-num">${videos}</div><div class="stat-label">Videos</div></div><div class="stat-card"><div class="stat-icon">🖼️</div><div class="stat-num">${images}</div><div class="stat-label">Images</div></div><div class="stat-card"><div class="stat-icon">📄</div><div class="stat-num">${docs}</div><div class="stat-label">Documents</div></div>`;}
+function render(){
+  const token=localStorage.getItem('smf_token');
+  const list=document.getElementById('dlList');
+  const pages=document.getElementById('pagination');
+  if(!token){list.innerHTML='<div class="empty"><div class="empty-icon">🔒</div><div class="empty-title">Sign in to view downloads</div><div class="empty-sub">Your download history is saved per account.</div><a href="/" class="go-home">← Go back and log in</a></div>';pages.innerHTML='';document.getElementById('statsGrid').innerHTML='';return;}
+  let items=getHistory();
+  renderStats(items);
+  if(currentFilter!=='all')items=items.filter(i=>{const p=(i.platform||'').toLowerCase();if(currentFilter==='video')return getBadge(i)==='video';if(currentFilter==='image')return getBadge(i)==='image';if(currentFilter==='document')return getBadge(i)==='document';return p.includes(currentFilter);});
+  if(currentSearch)items=items.filter(i=>(i.title||i.url||'').toLowerCase().includes(currentSearch)||(i.platform||'').toLowerCase().includes(currentSearch));
+  if(items.length===0){list.innerHTML='<div class="empty"><div class="empty-icon">📭</div><div class="empty-title">'+(currentSearch?'No results found':'No downloads yet')+'</div><div class="empty-sub">'+(currentSearch?'Try a different search term.':'Start downloading and your history appears here.')+'</div><a href="/" class="go-home">↓ Start Downloading</a></div>';pages.innerHTML='';return;}
+  const totalPages=Math.ceil(items.length/PER_PAGE);
+  const start=(currentPage-1)*PER_PAGE;
+  const pageItems=items.slice(start,start+PER_PAGE);
+  list.innerHTML=pageItems.map((item,i)=>{
+    const ri=start+i;
+    const platform=(item.platform||'unknown').toLowerCase();
+    const icon=ICONS[platform]||ICONS[getBadge(item)]||'🔗';
+    const badge=getBadge(item);
+    const title=item.title||item.url?.split('/').pop()||'Unknown';
+    const size=formatSize(item.file_size);
+    const url=(item.url||'').replace(/^https?:\/\/(www\.)?/,'').substring(0,60);
+    const safeUrl=(item.url||'').replace(/'/g,"\\'");
+    return`<div class="dl-card" onclick="refetch('${safeUrl}')"><div class="dl-icon">${icon}</div><div class="dl-info"><div class="dl-title" title="${title}">${title}</div><div class="dl-meta"><span class="dl-platform">${platform}</span><span class="dl-time">${timeAgo(item.time)}</span>${size?`<span class="dl-time">${size}</span>`:''}</div><div class="dl-url">${url}</div></div><span class="dl-badge ${badge}">${badge.toUpperCase()}</span><div class="dl-actions"><button class="action-btn" title="Re-fetch" onclick="event.stopPropagation();refetch('${safeUrl}')">↩</button><button class="action-btn danger" title="Delete" onclick="event.stopPropagation();deleteItem(${ri})">🗑️</button></div></div>`;
+  }).join('');
+  if(totalPages>1){let h='';if(currentPage>1)h+=`<button class="page-btn" onclick="goPage(${currentPage-1})">←</button>`;for(let p=1;p<=totalPages;p++)h+=`<button class="page-btn ${p===currentPage?'active':''}" onclick="goPage(${p})">${p}</button>`;if(currentPage<totalPages)h+=`<button class="page-btn" onclick="goPage(${currentPage+1})">→</button>`;pages.innerHTML=h;}else pages.innerHTML='';
+}
+function goPage(p){currentPage=p;render();window.scrollTo({top:0,behavior:'smooth'});}
+render();
+</script>
+</body>
+</html>
