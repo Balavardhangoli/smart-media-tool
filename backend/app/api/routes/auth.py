@@ -1,8 +1,10 @@
 """
 api/routes/auth.py
-Authentication endpoints: register, login, token refresh, API keys.
+Authentication endpoints: register, login, token refresh, API keys, password reset.
 """
-from datetime import timezone, datetime
+import random
+import string
+from datetime import timezone, datetime, timedelta
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -25,6 +27,10 @@ from app.schemas.auth import (
 
 router  = APIRouter(prefix="/auth", tags=["auth"])
 bearer  = HTTPBearer(auto_error=False)
+
+# ── In-memory OTP store ────────────────────────────────────
+# Key: email, Value: {otp, expires_at, user_id}
+_otp_store: dict = {}
 
 
 # ── Dependency: get current user from JWT ──────────────────
@@ -138,6 +144,103 @@ async def me(current_user: User = Depends(get_current_user)):
 
 
 # ──────────────────────────────────────────────────────────
+#  FORGOT PASSWORD — Step 1: Request OTP
+# ──────────────────────────────────────────────────────────
+@router.post("/forgot-password")
+async def forgot_password(
+    body: dict,
+    db:   AsyncSession = Depends(get_db),
+):
+    """Send password reset OTP. Always returns success for security."""
+    email = body.get("email", "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required.")
+
+    # Check if user exists
+    result = await db.execute(select(User).where(User.email == email))
+    user   = result.scalar_one_or_none()
+
+    if user:
+        # Generate 6-digit OTP valid for 10 minutes
+        otp = ''.join(random.choices(string.digits, k=6))
+        _otp_store[email] = {
+            "otp":        otp,
+            "expires_at": datetime.utcnow() + timedelta(minutes=10),
+            "user_id":    str(user.id),
+        }
+        # Print OTP to Render logs (check logs to get the code)
+        print(f"[PASSWORD RESET] OTP for {email}: {otp}", flush=True)
+
+    # Always return success — don't reveal if email exists
+    return {"message": "If this email exists, a reset code has been sent."}
+
+
+# ──────────────────────────────────────────────────────────
+#  RESET PASSWORD — Step 2: Verify OTP + Set New Password
+# ──────────────────────────────────────────────────────────
+@router.post("/reset-password")
+async def reset_password(
+    body: dict,
+    db:   AsyncSession = Depends(get_db),
+):
+    """Reset password using OTP code."""
+    email    = body.get("email", "").strip().lower()
+    otp      = body.get("otp", "").strip()
+    new_pass = body.get("new_password", "")
+
+    if not all([email, otp, new_pass]):
+        raise HTTPException(
+            status_code=400,
+            detail="Email, OTP and new password are required."
+        )
+
+    # Validate password strength
+    if len(new_pass) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
+    if not any(c.isupper() for c in new_pass):
+        raise HTTPException(status_code=400, detail="Password must contain at least 1 uppercase letter.")
+    if not any(c.isdigit() for c in new_pass):
+        raise HTTPException(status_code=400, detail="Password must contain at least 1 number.")
+
+    # Verify OTP exists
+    stored = _otp_store.get(email)
+    if not stored:
+        raise HTTPException(
+            status_code=400,
+            detail="No reset code found. Please request a new one."
+        )
+
+    # Check expiry
+    if datetime.utcnow() > stored["expires_at"]:
+        del _otp_store[email]
+        raise HTTPException(
+            status_code=400,
+            detail="Reset code has expired. Please request a new one."
+        )
+
+    # Verify OTP matches
+    if stored["otp"] != otp:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid reset code. Please check and try again."
+        )
+
+    # Update user password
+    result = await db.execute(select(User).where(User.email == email))
+    user   = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=400, detail="User not found.")
+
+    user.hashed_password = hash_password(new_pass)
+    await db.commit()
+
+    # Remove used OTP
+    del _otp_store[email]
+
+    return {"message": "Password reset successfully. Please log in with your new password."}
+
+
+# ──────────────────────────────────────────────────────────
 #  API KEYS
 # ──────────────────────────────────────────────────────────
 @router.post("/keys", response_model=APIKeyOut, status_code=201)
@@ -159,7 +262,7 @@ async def create_api_key(
     return APIKeyOut(
         id=key.id, name=key.name, key_prefix=key.key_prefix,
         is_active=key.is_active, created_at=str(key.created_at),
-        raw_key=raw,   # Only returned here — never stored in plaintext
+        raw_key=raw,
     )
 
 
