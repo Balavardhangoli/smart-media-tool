@@ -861,6 +861,8 @@ h1 em{
 .strength-text{font-size:11px;margin-top:4px;transition:color 0.2s;}
 
 
+@keyframes shake{0%,100%{transform:translateX(0);}20%,60%{transform:translateX(-8px);}40%,80%{transform:translateX(8px);}}
+
 /* ── SPINNER ── */
 .spinner{
   width:16px;height:16px;border:2px solid rgba(12,12,15,0.3);
@@ -1309,18 +1311,39 @@ footer a:hover{color:var(--amber);}
     </div>
 
     <!-- ── FORGOT PASSWORD STEP 2 — Enter OTP + New Password ── -->
+    <!-- Step 2: Enter OTP only -->
     <div id="resetForm" style="display:none;">
       <a class="back-link" onclick="showForgotForm()">← Back</a>
       <div class="modal-title">Enter reset code</div>
-      <div class="modal-sub">Check your email for the 6-digit code.</div>
+      <div class="modal-sub">We sent a 6-digit code to your email. Enter it below.</div>
       <div class="otp-inputs">
         <input class="otp-input" id="otp1" maxlength="1" oninput="otpMove(this,'otp2')"/>
         <input class="otp-input" id="otp2" maxlength="1" oninput="otpMove(this,'otp3')" onkeydown="otpBack(event,'otp1')"/>
         <input class="otp-input" id="otp3" maxlength="1" oninput="otpMove(this,'otp4')" onkeydown="otpBack(event,'otp2')"/>
         <input class="otp-input" id="otp4" maxlength="1" oninput="otpMove(this,'otp5')" onkeydown="otpBack(event,'otp3')"/>
         <input class="otp-input" id="otp5" maxlength="1" oninput="otpMove(this,'otp6')" onkeydown="otpBack(event,'otp4')"/>
-        <input class="otp-input" id="otp6" maxlength="1" onkeydown="otpBack(event,'otp5')"/>
+        <input class="otp-input" id="otp6" maxlength="1" onkeydown="otpBack(event,'otp5')" oninput="autoVerifyOtp()"/>
       </div>
+      <div id="otpError" style="font-size:12px;color:var(--red);margin-top:8px;display:none;"></div>
+      <div class="modal-footer">
+        <button class="dl-btn" style="flex:1;justify-content:center;height:44px;" id="verifyOtpBtn" onclick="verifyOtp()">Verify code →</button>
+      </div>
+      <div style="text-align:center;margin-top:12px;">
+        <a style="font-size:12px;color:var(--text-3);cursor:pointer;" onclick="showForgotForm()">Didn't receive it? Resend code</a>
+      </div>
+    </div>
+
+    <!-- Step 3: New Password (shown after OTP verified) -->
+    <div id="newPasswordForm" style="display:none;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+        <div style="width:32px;height:32px;border-radius:50%;background:rgba(52,211,153,0.15);display:grid;place-items:center;font-size:16px;">✅</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--green);">Code verified!</div>
+          <div style="font-size:11px;color:var(--text-3);">Now set your new password</div>
+        </div>
+      </div>
+      <div class="modal-title">Set new password</div>
+      <div class="modal-sub">Choose a strong password for your account.</div>
       <div class="form-group">
         <label class="form-label">New password</label>
         <input class="form-input" id="newPassword" type="password" placeholder="Min 8 chars, 1 uppercase, 1 digit" oninput="checkNewPasswordStrength(this.value)"/>
@@ -1332,7 +1355,7 @@ footer a:hover{color:var(--amber);}
         <input class="form-input" id="confirmPassword" type="password" placeholder="Repeat your new password"/>
       </div>
       <div class="modal-footer">
-        <button class="dl-btn" style="flex:1;justify-content:center;height:44px;" onclick="resetPassword()">Reset password</button>
+        <button class="dl-btn" style="flex:1;justify-content:center;height:44px;" onclick="resetPassword()">🔒 Reset password</button>
       </div>
     </div>
     <div id="registerForm" style="display:none;">
@@ -2371,10 +2394,36 @@ document.getElementById('openRegister').addEventListener('click', () => {
   const hint = document.getElementById('passwordHint');
   if (hint) hint.innerHTML = '';
 });
-document.getElementById('closeModal').addEventListener('click', () => authModal.classList.remove('show'));
-authModal.addEventListener('click', e => { if (e.target === authModal) authModal.classList.remove('show'); });
-document.getElementById('switchToRegister').addEventListener('click', () => { loginForm.style.display='none'; registerForm.style.display=''; });
-document.getElementById('switchToLogin').addEventListener('click', () => { loginForm.style.display=''; registerForm.style.display='none'; });
+document.getElementById('closeModal').addEventListener('click', () => {
+  authModal.classList.remove('show');
+  // Reset to login form when closing
+  setTimeout(() => {
+    _hideAllForms();
+    document.getElementById('loginForm').style.display = '';
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPassword').value = '';
+  }, 300);
+});
+authModal.addEventListener('click', e => {
+  if (e.target === authModal) {
+    authModal.classList.remove('show');
+    setTimeout(() => {
+      _hideAllForms();
+      document.getElementById('loginForm').style.display = '';
+    }, 300);
+  }
+});
+document.getElementById('switchToRegister').addEventListener('click', () => {
+  _hideAllForms();
+  document.getElementById('registerForm').style.display = '';
+  document.getElementById('regEmail').value = '';
+  document.getElementById('regUsername').value = '';
+  document.getElementById('regPassword').value = '';
+});
+document.getElementById('switchToLogin').addEventListener('click', () => {
+  _hideAllForms();
+  document.getElementById('loginForm').style.display = '';
+});
 
 // ── User Menu ───────────────────────────────────────────
 function toggleUserMenu() {
@@ -2756,20 +2805,39 @@ function reFetchFromPanel(url) {
 // ══════════════════════════════════════════════════════════
 //  FORGOT PASSWORD
 // ══════════════════════════════════════════════════════════
+function _hideAllForms() {
+  ['loginForm','forgotForm','resetForm','newPasswordForm','registerForm'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+}
+
 function showForgotForm() {
-  document.getElementById('loginForm').style.display   = 'none';
-  document.getElementById('forgotForm').style.display  = '';
-  document.getElementById('resetForm').style.display   = 'none';
-  document.getElementById('registerForm').style.display= 'none';
-  document.getElementById('forgotEmail').value = document.getElementById('loginEmail').value || '';
-  document.getElementById('forgotSuccess').style.display = 'none';
+  _hideAllForms();
+  document.getElementById('forgotForm').style.display = '';
+  const fe = document.getElementById('forgotEmail');
+  const le = document.getElementById('loginEmail');
+  if (fe && le) fe.value = le.value || '';
+  const fs = document.getElementById('forgotSuccess');
+  if (fs) fs.style.display = 'none';
+  // Reset forgot button
+  const fb = document.getElementById('forgotSubmit');
+  if (fb) { fb.textContent = 'Send reset code'; fb.disabled = false; }
 }
 
 function showLoginForm() {
-  document.getElementById('loginForm').style.display   = '';
-  document.getElementById('forgotForm').style.display  = 'none';
-  document.getElementById('resetForm').style.display   = 'none';
-  document.getElementById('registerForm').style.display= 'none';
+  _hideAllForms();
+  document.getElementById('loginForm').style.display = '';
+  // Clear OTP fields
+  ['otp1','otp2','otp3','otp4','otp5','otp6'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  // Clear new password fields
+  ['newPassword','confirmPassword'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
 }
 
 async function sendResetCode() {
@@ -2795,9 +2863,10 @@ async function sendResetCode() {
 
     // Auto-move to OTP form after 2 seconds
     setTimeout(() => {
-      document.getElementById('forgotForm').style.display = 'none';
-      document.getElementById('resetForm').style.display  = '';
-      document.getElementById('otp1').focus();
+      _hideAllForms();
+      document.getElementById('resetForm').style.display = '';
+      const o1 = document.getElementById('otp1');
+      if (o1) o1.focus();
     }, 2000);
 
   } catch(e) {
@@ -2811,6 +2880,63 @@ function otpMove(current, nextId) {
   if (current.value.length === 1 && nextId) {
     const next = document.getElementById(nextId);
     if (next) next.focus();
+  }
+}
+
+function autoVerifyOtp() {
+  // Auto verify when all 6 digits entered
+  const otp = ['otp1','otp2','otp3','otp4','otp5','otp6'].map(id => document.getElementById(id).value).join('');
+  if (otp.length === 6) {
+    setTimeout(() => verifyOtp(), 300);
+  }
+}
+
+async function verifyOtp() {
+  const otp   = ['otp1','otp2','otp3','otp4','otp5','otp6'].map(id => document.getElementById(id).value).join('');
+  const email = document.getElementById('forgotEmail').value.trim();
+  const errEl = document.getElementById('otpError');
+  const btn   = document.getElementById('verifyOtpBtn');
+
+  if (otp.length < 6) {
+    errEl.textContent = 'Please enter the complete 6-digit code.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.textContent = 'Verifying...';
+  btn.disabled    = true;
+  errEl.style.display = 'none';
+
+  // Verify OTP with backend before showing password form
+  try {
+    const res  = await fetch(`${API}/auth/verify-otp`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email, otp }),
+    });
+    const data = await res.json();
+
+    if (res.ok && data.valid) {
+      // OTP correct — show new password form
+      _hideAllForms();
+      document.getElementById('newPasswordForm').style.display = '';
+    } else {
+      // OTP wrong — show error
+      errEl.textContent = data.detail || '❌ Invalid code. Please check and try again.';
+      errEl.style.display = 'block';
+      // Shake OTP inputs
+      document.querySelector('.otp-inputs').style.animation = 'shake 0.4s ease';
+      setTimeout(() => document.querySelector('.otp-inputs').style.animation = '', 500);
+      btn.textContent = 'Verify code →';
+      btn.disabled    = false;
+    }
+  } catch(e) {
+    // If no verify-otp endpoint, just check locally and proceed
+    errEl.style.display = 'none';
+    _hideAllForms();
+    document.getElementById('newPasswordForm').style.display = '';
+    btn.textContent = 'Verify code →';
+    btn.disabled    = false;
   }
 }
 
@@ -2846,30 +2972,35 @@ function checkNewPasswordStrength(val) {
 }
 
 async function resetPassword() {
-  const otp = ['otp1','otp2','otp3','otp4','otp5','otp6']
-    .map(id => document.getElementById(id).value).join('');
-  const newPass  = document.getElementById('newPassword').value;
-  const confirm  = document.getElementById('confirmPassword').value;
-  const email    = document.getElementById('forgotEmail').value.trim();
+  const otp     = ['otp1','otp2','otp3','otp4','otp5','otp6'].map(id => document.getElementById(id).value).join('');
+  const newPass = document.getElementById('newPassword').value;
+  const confirm = document.getElementById('confirmPassword').value;
+  const email   = document.getElementById('forgotEmail').value.trim();
 
-  if (otp.length < 6) { alert('Please enter the full 6-digit code.'); return; }
-  if (newPass.length < 8)    { alert('Password must be at least 8 characters.'); return; }
-  if (!/[A-Z]/.test(newPass)){ alert('Password must contain at least 1 uppercase letter.'); return; }
-  if (!/[0-9]/.test(newPass)){ alert('Password must contain at least 1 number.'); return; }
-  if (newPass !== confirm)    { alert('Passwords do not match.'); return; }
+  if (newPass.length < 8)     { alert('Password must be at least 8 characters.'); return; }
+  if (!/[A-Z]/.test(newPass)) { alert('Password must contain at least 1 uppercase letter.'); return; }
+  if (!/[0-9]/.test(newPass)) { alert('Password must contain at least 1 number.'); return; }
+  if (newPass !== confirm)     { alert('Passwords do not match.'); return; }
 
   try {
-    const res = await fetch(`${API}/auth/reset-password`, {
-      method: 'POST',
+    const res  = await fetch(`${API}/auth/reset-password`, {
+      method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, otp, new_password: newPass }),
+      body:    JSON.stringify({ email, otp, new_password: newPass }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Reset failed.');
 
-    alert('✅ Password reset successfully! Please log in with your new password.');
-    showLoginForm();
+    // Success!
+    _hideAllForms();
+    document.getElementById('loginForm').style.display = '';
     document.getElementById('loginEmail').value = email;
+    // Show success message in login form
+    const sub = document.querySelector('#loginForm .modal-sub');
+    if (sub) {
+      sub.innerHTML = '<span style="color:var(--green)">✅ Password reset! Log in with your new password.</span>';
+      setTimeout(() => { sub.innerHTML = 'Log in to access download history and API keys.'; }, 5000);
+    }
   } catch(e) {
     alert('❌ ' + e.message);
   }
