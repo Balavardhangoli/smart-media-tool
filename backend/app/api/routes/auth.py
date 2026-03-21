@@ -246,19 +246,21 @@ async def forgot_password(
     result = await db.execute(select(User).where(User.email == email))
     user   = result.scalar_one_or_none()
 
-    if user:
-        # Generate 6-digit OTP valid for 10 minutes
-        otp = ''.join(random.choices(string.digits, k=6))
-        _otp_store[email] = {
-            "otp":        otp,
-            "expires_at": datetime.utcnow() + timedelta(minutes=10),
-            "user_id":    str(user.id),
-        }
-        # Send email via Resend
-        await _send_reset_email(email, otp, user.username or email.split("@")[0])
+    if not user:
+        # Email not found — tell frontend clearly
+        return {"message": "No account found with this email.", "sent": False}
 
-    # Always return success — don't reveal if email exists
-    return {"message": "If this email exists, a reset code has been sent."}
+    # User found — generate OTP and send email
+    otp = ''.join(random.choices(string.digits, k=6))
+    _otp_store[email] = {
+        "otp":        otp,
+        "expires_at": datetime.utcnow() + timedelta(minutes=10),
+        "user_id":    str(user.id),
+    }
+    # Send email via Resend
+    await _send_reset_email(email, otp, user.username or email.split("@")[0])
+
+    return {"message": "Reset code sent to your email.", "sent": True}
 
 
 # ──────────────────────────────────────────────────────────
