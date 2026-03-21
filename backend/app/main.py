@@ -147,3 +147,7 @@ if frontend_dir.exists():
     @app.get("/settings", include_in_schema=False)
     async def serve_settings(request: Request):
         return templates.TemplateResponse("settings.html", {"request": request})
+
+    @app.get("/faq", include_in_schema=False)
+    async def serve_faq(request: Request):
+        return templates.TemplateResponse("faq.html", {"request": request})
