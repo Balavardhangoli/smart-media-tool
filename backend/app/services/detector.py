@@ -118,10 +118,7 @@ def detect_platform(url: str) -> DetectionResult:
                 extra={"kind": kind, "shortcode": m.group(2)},
             )
 
-    # 4. TikTok
-    if any(pat.search(url) for pat in TIKTOK_PATTERNS):
-        return DetectionResult(url=url, platform=Platform.TIKTOK, media_type=MediaType.VIDEO)
-
+   
     # 5. Twitter
     for pat in TWITTER_PATTERNS:
         m = pat.search(url)
@@ -140,21 +137,6 @@ def detect_platform(url: str) -> DetectionResult:
     # 7. Reddit
     if any(pat.search(url) for pat in REDDIT_PATTERNS):
         return DetectionResult(url=url, platform=Platform.REDDIT, media_type=MediaType.VIDEO)
-
-    # 8. Vimeo
-    for pat in VIMEO_PATTERNS:
-        m = pat.search(url)
-        if m:
-            return DetectionResult(
-                url=url,
-                platform=Platform.VIMEO,
-                media_type=MediaType.VIDEO,
-                video_id=m.group(1),
-            )
-
-    # 9. Pinterest
-    if any(pat.search(url) for pat in PINTEREST_PATTERNS):
-        return DetectionResult(url=url, platform=Platform.PINTEREST, media_type=MediaType.IMAGE)
 
     # 10. Generic webpage — will be scraped for media
     return DetectionResult(url=url, platform=Platform.WEBPAGE, media_type=MediaType.WEBPAGE)
