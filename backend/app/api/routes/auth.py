@@ -7,8 +7,10 @@ import string
 from datetime import timezone, datetime, timedelta
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,10 +29,13 @@ from app.schemas.auth import (
 
 router  = APIRouter(prefix="/auth", tags=["auth"])
 bearer  = HTTPBearer(auto_error=False)
+limiter = Limiter(key_func=get_remote_address)
 
 # ── In-memory OTP store ────────────────────────────────────
 # Key: email, Value: {otp, expires_at, user_id}
 _otp_store: dict = {}
+_otp_attempts: dict = {}  # Track failed OTP attempts per email
+MAX_OTP_ATTEMPTS = 5      # Max wrong attempts before OTP invalidated
 
 
 # ── Dependency: get current user from JWT ──────────────────
@@ -55,7 +60,8 @@ async def get_current_user(
 #  REGISTER
 # ──────────────────────────────────────────────────────────
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-async def register(body: UserRegister, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def register(request: Request, body: UserRegister, db: AsyncSession = Depends(get_db)):
     # Check email uniqueness
     existing = await db.execute(select(User).where(User.email == body.email))
     if existing.scalar_one_or_none():
@@ -65,6 +71,14 @@ async def register(body: UserRegister, db: AsyncSession = Depends(get_db)):
     existing = await db.execute(select(User).where(User.username == body.username))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Username already taken.")
+
+    # Additional validation
+    if len(body.password) > 128:
+        raise HTTPException(status_code=400, detail="Password too long. Maximum 128 characters.")
+    if len(body.username) > 50:
+        raise HTTPException(status_code=400, detail="Username too long. Maximum 50 characters.")
+    if not body.username.replace('_','').replace('-','').isalnum():
+        raise HTTPException(status_code=400, detail="Username can only contain letters, numbers, hyphens and underscores.")
 
     user = User(
         email=body.email,
@@ -82,7 +96,8 @@ async def register(body: UserRegister, db: AsyncSession = Depends(get_db)):
 #  LOGIN
 # ──────────────────────────────────────────────────────────
 @router.post("/login", response_model=TokenResponse)
-async def login(body: UserLogin, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def login(request: Request, body: UserLogin, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == body.email))
     user   = result.scalar_one_or_none()
 
@@ -233,7 +248,9 @@ async def _send_reset_email(to_email: str, otp: str, username: str) -> bool:
 #  FORGOT PASSWORD — Step 1: Request OTP
 # ──────────────────────────────────────────────────────────
 @router.post("/forgot-password")
+@limiter.limit("3/minute")
 async def forgot_password(
+    request: Request,
     body: dict,
     db:   AsyncSession = Depends(get_db),
 ):
@@ -267,7 +284,8 @@ async def forgot_password(
 #  VERIFY OTP — Check if OTP is valid (without resetting)
 # ──────────────────────────────────────────────────────────
 @router.post("/verify-otp")
-async def verify_otp(body: dict):
+@limiter.limit("5/minute")
+async def verify_otp(request: Request, body: dict):
     """Verify OTP is valid without consuming it."""
     email = body.get("email", "").strip().lower()
     otp   = body.get("otp", "").strip()
@@ -280,12 +298,24 @@ async def verify_otp(body: dict):
         raise HTTPException(status_code=404, detail="No reset code found. Please request a new one.")
 
     if datetime.utcnow() > stored["expires_at"]:
-        del _otp_store[email]
+        _otp_store.pop(email, None)
+        _otp_attempts.pop(email, None)
         raise HTTPException(status_code=400, detail="Reset code has expired. Please request a new one.")
 
-    if stored["otp"] != otp:
-        raise HTTPException(status_code=400, detail="Invalid reset code. Please check and try again.")
+    # Check brute force attempts
+    attempts = _otp_attempts.get(email, 0)
+    if attempts >= MAX_OTP_ATTEMPTS:
+        _otp_store.pop(email, None)
+        _otp_attempts.pop(email, None)
+        raise HTTPException(status_code=429, detail="Too many wrong attempts. Please request a new reset code.")
 
+    if stored["otp"] != otp:
+        _otp_attempts[email] = attempts + 1
+        remaining = MAX_OTP_ATTEMPTS - attempts - 1
+        raise HTTPException(status_code=400, detail=f"Invalid reset code. {remaining} attempts remaining.")
+
+    # OTP correct — clear attempts
+    _otp_attempts.pop(email, None)
     return {"valid": True, "message": "OTP verified successfully."}
 
 
