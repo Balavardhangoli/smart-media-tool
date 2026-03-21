@@ -1376,10 +1376,8 @@ document.getElementById('openRegister').addEventListener('click', () => {
 });
 document.getElementById('closeModal').addEventListener('click', () => {
   authModal.classList.remove('show');
-
   setTimeout(() => {
-    _hideAllForms();
-    document.getElementById('loginForm').style.display = '';
+    showLoginForm(); // This handles all clearing
     document.getElementById('loginEmail').value = '';
     document.getElementById('loginPassword').value = '';
   }, 300);
@@ -1388,8 +1386,9 @@ authModal.addEventListener('click', e => {
   if (e.target === authModal) {
     authModal.classList.remove('show');
     setTimeout(() => {
-      _hideAllForms();
-      document.getElementById('loginForm').style.display = '';
+      showLoginForm();
+      document.getElementById('loginEmail').value = '';
+      document.getElementById('loginPassword').value = '';
     }, 300);
   }
 });
@@ -1766,12 +1765,20 @@ function showForgotForm() {
   _hideAllForms();
   _clearResetFields();
   document.getElementById('forgotForm').style.display = '';
+
+  // Always clear email field — never pre-fill
   const fe = document.getElementById('forgotEmail');
-  const le = document.getElementById('loginEmail');
-  if (fe && le) fe.value = le.value || '';
+  if (fe) fe.value = '';
+
+  // Always clear error box
+  const errBox = document.getElementById('forgotEmailError');
+  if (errBox) { errBox.style.display = 'none'; errBox.textContent = ''; }
+
+  // Always clear success box
   const fs = document.getElementById('forgotSuccess');
   if (fs) fs.style.display = 'none';
 
+  // Reset button to original state
   const fb = document.getElementById('forgotSubmit');
   if (fb) { fb.textContent = 'Send reset code'; fb.disabled = false; }
 }
@@ -1794,6 +1801,16 @@ function showLoginForm() {
   _hideAllForms();
   _clearResetFields();
   document.getElementById('loginForm').style.display = '';
+
+  // Clear forgot form errors too
+  const errBox = document.getElementById('forgotEmailError');
+  if (errBox) { errBox.style.display = 'none'; errBox.textContent = ''; }
+  const fe = document.getElementById('forgotEmail');
+  if (fe) fe.value = '';
+  const fs = document.getElementById('forgotSuccess');
+  if (fs) fs.style.display = 'none';
+  const fb = document.getElementById('forgotSubmit');
+  if (fb) { fb.textContent = 'Send reset code'; fb.disabled = false; }
 }
 
 async function sendResetCode() {
