@@ -2814,6 +2814,7 @@ function _hideAllForms() {
 
 function showForgotForm() {
   _hideAllForms();
+  _clearResetFields();  // Clear OTP boxes every time
   document.getElementById('forgotForm').style.display = '';
   const fe = document.getElementById('forgotEmail');
   const le = document.getElementById('loginEmail');
@@ -2869,6 +2870,7 @@ async function sendResetCode() {
     // Auto-move to OTP form after 2 seconds
     setTimeout(() => {
       _hideAllForms();
+      _clearResetFields();  // Always clear OTP boxes before showing
       document.getElementById('resetForm').style.display = '';
       const o1 = document.getElementById('otp1');
       if (o1) o1.focus();
