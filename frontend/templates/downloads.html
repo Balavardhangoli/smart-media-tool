@@ -85,10 +85,21 @@ body{background:var(--bg);color:var(--text);font-family:'Cabinet Grotesk',sans-s
 .sort-select:focus{border-color:var(--amber);}
 .filter-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 .filter-label{font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px;margin-right:4px;}
-.filter-chip{padding:6px 13px;border-radius:100px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--surface);color:var(--text-2);cursor:pointer;transition:all 0.2s;font-family:'Cabinet Grotesk',sans-serif;white-space:nowrap;}
-.filter-chip:hover{border-color:var(--amber);color:var(--amber);}
-.filter-chip.active{background:var(--amber);border-color:var(--amber);color:#0c0c0f;}
-.filter-chip .count{opacity:0.7;font-size:11px;}
+.filter-chip{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:8px 16px;border-radius:100px;
+  border:1px solid var(--border);background:var(--surface);
+  cursor:pointer;transition:all 0.2s;
+  font-family:'Cabinet Grotesk',sans-serif;white-space:nowrap;
+}
+.filter-chip:hover{border-color:rgba(251,191,36,0.4);background:var(--amber-dim);}
+.filter-chip:hover .fc-text{color:var(--amber);}
+.filter-chip.active{background:var(--amber);border-color:var(--amber);}
+.filter-chip.active .fc-text{color:#0c0c0f;}
+.filter-chip.active .fc-count{background:rgba(12,12,15,0.2);color:#0c0c0f;}
+.fc-icon{font-size:14px;line-height:1;}
+.fc-text{font-size:12px;font-weight:700;color:var(--text-2);letter-spacing:0.1px;}
+.fc-count{font-size:10px;font-weight:700;padding:2px 7px;border-radius:100px;background:rgba(255,255,255,0.06);color:var(--text-3);}
 
 /* ── Results bar ── */
 .results-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:0 4px;}
@@ -138,12 +149,31 @@ body{background:var(--bg);color:var(--text);font-family:'Cabinet Grotesk',sans-s
 .pg-btn.active{background:var(--amber-dim);}
 .pg-info{font-size:12px;color:var(--text-3);padding:0 8px;}
 
-@media(max-width:640px){
+@media(max-width:768px){
   .stats-grid{grid-template-columns:repeat(2,1fr);}
-  .search-row{flex-direction:column;}
-  .sort-select{width:100%;}
-  .dl-card-inner{flex-wrap:wrap;}
   .chart-card{display:none;}
+}
+@media(max-width:580px){
+  .wrapper{padding:16px 14px 40px;}
+  .page-header{flex-wrap:wrap;gap:10px;}
+  .header-left{gap:10px;}
+  .page-title{font-size:18px;}
+  .stats-grid{grid-template-columns:repeat(2,1fr);gap:8px;}
+  .stat-num{font-size:20px;}
+  .toolbar{padding:12px 14px;}
+  .search-row{flex-direction:column;gap:8px;}
+  .sort-select{width:100%;}
+  .filter-row{gap:4px;}
+  .filter-chip{padding:5px 10px;font-size:11px;}
+  .dl-card-inner{flex-wrap:wrap;gap:10px;}
+  .dl-content{min-width:calc(100% - 56px);}
+  .dl-actions{margin-left:auto;}
+  .pagination{flex-wrap:wrap;gap:4px;}
+}
+@media(max-width:360px){
+  .stats-grid{grid-template-columns:1fr 1fr;}
+  .stat-card{padding:14px;}
+  .stat-num{font-size:18px;}
 }
 </style>
 </head>
@@ -196,13 +226,12 @@ body{background:var(--bg);color:var(--text);font-family:'Cabinet Grotesk',sans-s
     </div>
     <div class="filter-row">
       <span class="filter-label">Filter:</span>
-      <button class="filter-chip active" data-filter="all" onclick="setFilter('all',this)">All <span class="count" id="cnt-all"></span></button>
-      <button class="filter-chip" data-filter="youtube" onclick="setFilter('youtube',this)">▶️ YouTube <span class="count" id="cnt-youtube"></span></button>
-      <button class="filter-chip" data-filter="instagram" onclick="setFilter('instagram',this)">📸 Instagram <span class="count" id="cnt-instagram"></span></button>
-      <button class="filter-chip" data-filter="tiktok" onclick="setFilter('tiktok',this)">🎵 TikTok <span class="count" id="cnt-tiktok"></span></button>
-      <button class="filter-chip" data-filter="video" onclick="setFilter('video',this)">🎬 Video <span class="count" id="cnt-video"></span></button>
-      <button class="filter-chip" data-filter="image" onclick="setFilter('image',this)">🖼️ Image <span class="count" id="cnt-image"></span></button>
-      <button class="filter-chip" data-filter="document" onclick="setFilter('document',this)">📄 Doc <span class="count" id="cnt-document"></span></button>
+      <button class="filter-chip active" data-filter="all" onclick="setFilter('all',this)"><span class="fc-icon">⚡</span><span class="fc-text">All</span><span class="fc-count" id="cnt-all"></span></button>
+      <button class="filter-chip" data-filter="youtube" onclick="setFilter('youtube',this)"><span class="fc-icon">▶️</span><span class="fc-text">YouTube</span><span class="fc-count" id="cnt-youtube"></span></button>
+      <button class="filter-chip" data-filter="instagram" onclick="setFilter('instagram',this)"><span class="fc-icon">📸</span><span class="fc-text">Instagram</span><span class="fc-count" id="cnt-instagram"></span></button>
+      <button class="filter-chip" data-filter="video" onclick="setFilter('video',this)"><span class="fc-icon">🎬</span><span class="fc-text">Video</span><span class="fc-count" id="cnt-video"></span></button>
+      <button class="filter-chip" data-filter="image" onclick="setFilter('image',this)"><span class="fc-icon">🖼️</span><span class="fc-text">Image</span><span class="fc-count" id="cnt-image"></span></button>
+      <button class="filter-chip" data-filter="document" onclick="setFilter('document',this)"><span class="fc-icon">📄</span><span class="fc-text">Doc</span><span class="fc-count" id="cnt-document"></span></button>
     </div>
   </div>
 
@@ -221,7 +250,7 @@ body{background:var(--bg);color:var(--text);font-family:'Cabinet Grotesk',sans-s
 </div>
 
 <script>
-const ICONS={youtube:'▶️',instagram:'📸',tiktok:'🎵',twitter:'🐦',facebook:'📘',reddit:'🤖',vimeo:'🎬',pinterest:'📌',direct:'🔗',image:'🖼️',video:'🎬',audio:'🎵',document:'📄',unknown:'🔗'};
+const ICONS={youtube:'▶️',instagram:'📸',twitter:'🐦',facebook:'📘',reddit:'🤖',direct:'🔗',image:'🖼️',video:'🎬',audio:'🎵',document:'📄',unknown:'🔗'};
 const PER_PAGE=10;
 let currentPage=1,currentFilter='all',currentSearch='',currentSort='newest';
 let isDark=localStorage.getItem('smf_theme')!=='light';
@@ -356,14 +385,17 @@ function updateFilterCounts(items){
     all:items.length,
     youtube:items.filter(i=>(i.platform||'').toLowerCase().includes('youtube')).length,
     instagram:items.filter(i=>(i.platform||'').toLowerCase().includes('instagram')).length,
-    tiktok:items.filter(i=>(i.platform||'').toLowerCase().includes('tiktok')).length,
+  
     video:items.filter(i=>getBadge(i)==='video').length,
     image:items.filter(i=>getBadge(i)==='image').length,
     document:items.filter(i=>getBadge(i)==='document').length,
   };
   Object.keys(counts).forEach(k=>{
     const el=document.getElementById('cnt-'+k);
-    if(el)el.textContent=counts[k]>0?'('+counts[k]+')':'';
+    if(el){
+      el.textContent=counts[k]>0?counts[k]:'';
+      el.style.display=counts[k]>0?'':'none';
+    }
   });
 }
 
