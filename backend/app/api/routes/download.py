@@ -138,6 +138,10 @@ async def fetch(
     except SSRFError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    # Block javascript: and data: URLs
+    if url.lower().startswith(('javascript:', 'data:', 'vbscript:', 'file:')):
+        raise HTTPException(status_code=400, detail="URL scheme not allowed.")
+
     import httpx
     from app.utils.file_utils import sanitize_filename
 
