@@ -2,9 +2,9 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
 <title>Smart Media Fetcher — Universal Downloader</title>
-<meta name="description" content="Download any media from any URL. Images, videos, audio, Instagram, YouTube, TikTok and more."/>
+<meta name="description" content="Download any media from any URL. Images, videos, audio, Instagram, YouTube, Facebook, Reddit and more."/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
 <style>
@@ -167,14 +167,46 @@ h1 em{
 
 /* ── PLATFORM PILLS ── */
 .platform-pills{
-  display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:40px;
+  display:flex;flex-wrap:wrap;gap:8px;justify-content:center;
+  margin-bottom:40px;
 }
 .pill{
-  padding:5px 13px;border-radius:100px;font-size:11px;font-weight:600;
-  background:var(--surface);border:1px solid var(--border);
-  color:var(--text-2);letter-spacing:0.3px;transition:all 0.2s;cursor:default;
+  display:inline-flex;align-items:center;gap:8px;
+  padding:9px 18px;border-radius:100px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  transition:all 0.25s cubic-bezier(0.4,0,0.2,1);
+  cursor:default;position:relative;overflow:hidden;
 }
-.pill:hover{border-color:var(--amber);color:var(--amber);background:var(--amber-dim);}
+.pill::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,var(--pill-c1,transparent),var(--pill-c2,transparent));
+  opacity:0;transition:opacity 0.25s;border-radius:100px;
+}
+.pill:hover::before{opacity:1;}
+.pill:hover{border-color:transparent;transform:translateY(-2px);
+  box-shadow:0 4px 20px var(--pill-shadow,rgba(251,191,36,0.2));}
+.pill-icon{font-size:15px;line-height:1;position:relative;z-index:1;}
+.pill-text{
+  font-size:12px;font-weight:700;color:var(--text-2);
+  letter-spacing:0.2px;position:relative;z-index:1;
+  transition:color 0.2s;
+}
+.pill:hover .pill-text{color:#fff;}
+
+/* Platform-specific gradient colors */
+.pill-yt{--pill-c1:#ff0000;--pill-c2:#cc0000;--pill-shadow:rgba(255,0,0,0.25);}
+.pill-ig{--pill-c1:#e1306c;--pill-c2:#833ab4;--pill-shadow:rgba(225,48,108,0.25);}
+
+.pill-tw{--pill-c1:#1da1f2;--pill-c2:#0d8ecf;--pill-shadow:rgba(29,161,242,0.25);}
+.pill-fb{--pill-c1:#1877f2;--pill-c2:#0d65d9;--pill-shadow:rgba(24,119,242,0.25);}
+
+.pill-rd{--pill-c1:#ff4500;--pill-c2:#cc3700;--pill-shadow:rgba(255,69,0,0.25);}
+
+.pill-img{--pill-c1:#34d399;--pill-c2:#059669;--pill-shadow:rgba(52,211,153,0.25);}
+.pill-vid{--pill-c1:#6366f1;--pill-c2:#4f46e5;--pill-shadow:rgba(99,102,241,0.25);}
+.pill-aud{--pill-c1:#f59e0b;--pill-c2:#d97706;--pill-shadow:rgba(245,158,11,0.25);}
+.pill-pdf{--pill-c1:#ef4444;--pill-c2:#dc2626;--pill-shadow:rgba(239,68,68,0.25);}
 
 /* ── MAIN CARD ── */
 .main-card{
@@ -842,12 +874,87 @@ footer{text-align:center;margin-top:80px;font-size:12px;color:var(--text-3);line
 footer a{color:var(--text-2);text-decoration:none;}
 footer a:hover{color:var(--amber);}
 
-/* ── RESPONSIVE ── */
+/* ══════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE — Full Coverage
+══════════════════════════════════════════════════════════ */
+
+/* Tablet (max 768px) */
+@media(max-width:768px){
+  .wrapper{padding:24px 16px 80px;}
+  h1{font-size:36px;}
+  .stats-grid{grid-template-columns:repeat(2,1fr);}
+}
+
+/* Mobile (max 580px) */
 @media(max-width:580px){
-  .url-row{flex-direction:column;}
-  .dl-btn{width:100%;justify-content:center;}
-  h1{letter-spacing:-1px;}
-  .modal{padding:24px;}
+  /* Layout */
+  .wrapper{padding:16px 14px 60px;}
+
+  /* Header */
+  header{flex-wrap:wrap;gap:10px;margin-bottom:32px;}
+  .header-actions{gap:6px;}
+  .logo-name{font-size:15px;}
+  #authButtons{display:flex;gap:6px;}
+  .auth-btn{padding:6px 12px;font-size:12px;}
+  .user-btn{padding:6px 10px;font-size:12px;}
+  .user-dropdown{right:-10px;min-width:160px;}
+
+  /* Hero */
+  h1{font-size:28px;letter-spacing:-1px;}
+  .hero-sub{font-size:14px;}
+  .hero-eyebrow{font-size:10px;}
+  .platform-pills{gap:6px;}
+  .pill{font-size:10px;padding:4px 10px;}
+
+  /* Main card */
+  .main-card{padding:16px;}
+  .url-row{flex-direction:column;gap:10px;}
+  .dl-btn{width:100%;justify-content:center;height:46px;}
+  .url-input{font-size:14px;}
+
+  /* Quality/Format row */
+  .options-row{flex-direction:column;gap:8px;}
+  .opt-group{min-width:unset;width:100%;}
+  .toggle-bulk{width:100%;justify-content:center;}
+
+  /* Result card */
+  .result-preview-wrap{height:160px;}
+  .result-actions{flex-direction:column;}
+  .result-actions .dl-btn{width:100%;}
+  .options-list{grid-template-columns:1fr;}
+
+  /* Modal */
+  .modal-overlay{padding:12px;}
+  .modal{padding:20px;border-radius:16px;width:100%;}
+  .modal-title{font-size:18px;}
+  .otp-inputs{gap:6px;}
+  .otp-input{width:40px;height:46px;font-size:18px;}
+
+  /* History section */
+  .history-item{padding:10px 12px;}
+  .history-url{font-size:11px;}
+
+  /* Footer */
+  footer{margin-top:40px;font-size:11px;}
+}
+
+/* Very small phones (max 360px) */
+@media(max-width:360px){
+  h1{font-size:24px;}
+  .otp-input{width:36px;height:42px;font-size:16px;}
+  .dl-btn{font-size:13px;}
+}
+
+/* ── TOUCH IMPROVEMENTS ── */
+@media(hover:none) and (pointer:coarse){
+  .dl-btn{min-height:48px;}
+  .auth-btn{min-height:44px;}
+  .filter-chip{min-height:36px;}
+  .act-btn{width:40px;height:40px;}
+  .url-input{font-size:16px !important;}
+  .form-input{font-size:16px !important;}
+  .field-input{font-size:16px !important;}
+  select{font-size:16px !important;}
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -1040,12 +1147,18 @@ footer a:hover{color:var(--amber);}
     <h1>Download <em>Any Media</em><br>From Any URL</h1>
     <p class="hero-sub">Paste any link — image, video, reel, post, or file. We detect the source, extract the best quality, and deliver it instantly.</p>
     <div class="platform-pills" id="platformPills">
-      <span class="pill">🖼️ Images</span><span class="pill">🎬 Videos</span>
-      <span class="pill">▶️ YouTube</span><span class="pill">📸 Instagram</span>
-      <span class="pill">🎵 TikTok</span><span class="pill">🐦 Twitter</span>
-      <span class="pill">📘 Facebook</span><span class="pill">🎬 Vimeo</span>
-      <span class="pill">🤖 Reddit</span><span class="pill">📌 Pinterest</span>
-      <span class="pill">🎵 Audio</span><span class="pill">📄 PDF</span>
+      <span class="pill pill-yt"><span class="pill-icon">▶️</span><span class="pill-text">YouTube</span></span>
+      <span class="pill pill-ig"><span class="pill-icon">📸</span><span class="pill-text">Instagram</span></span>
+      
+      <span class="pill pill-tw"><span class="pill-icon">🐦</span><span class="pill-text">Twitter</span></span>
+      <span class="pill pill-fb"><span class="pill-icon">📘</span><span class="pill-text">Facebook</span></span>
+      
+      <span class="pill pill-rd"><span class="pill-icon">🤖</span><span class="pill-text">Reddit</span></span>
+      
+      <span class="pill pill-img"><span class="pill-icon">🖼️</span><span class="pill-text">Images</span></span>
+      <span class="pill pill-vid"><span class="pill-icon">🎬</span><span class="pill-text">Videos</span></span>
+      <span class="pill pill-aud"><span class="pill-icon">🎵</span><span class="pill-text">Audio</span></span>
+      <span class="pill pill-pdf"><span class="pill-icon">📄</span><span class="pill-text">PDF</span></span>
     </div>
   </div>
 
@@ -1768,7 +1881,7 @@ footer a:hover{color:var(--amber);}
         <button class="dl-filter-btn active" data-filter="all" onclick="event.stopPropagation();setDlFilter('all',this)">All</button>
         <button class="dl-filter-btn" data-filter="youtube" onclick="setDlFilter('youtube',this)">▶️ YouTube</button>
         <button class="dl-filter-btn" data-filter="instagram" onclick="setDlFilter('instagram',this)">📸 Instagram</button>
-        <button class="dl-filter-btn" data-filter="tiktok" onclick="setDlFilter('tiktok',this)">🎵 TikTok</button>
+  
         <button class="dl-filter-btn" data-filter="video" onclick="setDlFilter('video',this)">🎬 Video</button>
         <button class="dl-filter-btn" data-filter="image" onclick="setDlFilter('image',this)">🖼️ Image</button>
         <button class="dl-filter-btn" data-filter="document" onclick="setDlFilter('document',this)">📄 Document</button>
@@ -1847,12 +1960,12 @@ const historyList  = document.getElementById('historyList');
 const PLATFORM_MAP = [
   { re:/youtube\.com|youtu\.be/, name:'YouTube', icon:'▶️', note:'Video / Short' },
   { re:/instagram\.com|instagr\.am/, name:'Instagram', icon:'📸', note:'Post / Reel / Story' },
-  { re:/tiktok\.com/, name:'TikTok', icon:'🎵', note:'Video' },
+
   { re:/twitter\.com|x\.com/, name:'Twitter / X', icon:'🐦', note:'Tweet Media' },
   { re:/facebook\.com|fb\.com|fb\.watch/, name:'Facebook', icon:'📘', note:'Video / Photo' },
   { re:/reddit\.com|redd\.it/, name:'Reddit', icon:'🤖', note:'Video / Image / GIF' },
-  { re:/vimeo\.com/, name:'Vimeo', icon:'🎬', note:'HD Video' },
-  { re:/pinterest\.com|pin\.it/, name:'Pinterest', icon:'📌', note:'Pin Image' },
+
+
   { re:/\.(jpg|jpeg|png|gif|webp|svg|avif|bmp)(\?|$)/i, name:'Direct Image', icon:'🖼️', note:'Image File' },
   { re:/\.(mp4|mov|webm|avi|mkv|m4v)(\?|$)/i, name:'Direct Video', icon:'🎬', note:'Video File' },
   { re:/\.(mp3|wav|ogg|flac|aac|m4a)(\?|$)/i, name:'Direct Audio', icon:'🎵', note:'Audio File' },
@@ -2183,7 +2296,7 @@ function renderHistory() {
   if (!authToken || !history.length) { historySection.style.display = 'none'; return; }
   historySection.style.display = 'block';
   historyList.innerHTML = '';
-  const ICONS = { youtube:'▶️', instagram:'📸', tiktok:'🎵', twitter:'🐦', facebook:'📘', reddit:'🤖', vimeo:'🎬', pinterest:'📌', direct:'🖼️', image:'🖼️', video:'🎬', audio:'🎵' };
+  const ICONS = { youtube:'▶️', instagram:'📸', twitter:'🐦', facebook:'📘', reddit:'🤖', direct:'🖼️', image:'🖼️', video:'🎬', audio:'🎵', document:'📄', unknown:'🔗' };
   history.slice(0,6).forEach(h => {
     const ago   = timeAgo(h.time);
     const icon  = ICONS[h.platform?.toLowerCase()] || '🔗';
@@ -2456,8 +2569,8 @@ let dlFilter  = 'all';
 let dlSearch  = '';
 
 const PLATFORM_ICONS = {
-  youtube:'▶️', instagram:'📸', tiktok:'🎵', twitter:'🐦',
-  facebook:'📘', reddit:'🤖', vimeo:'🎬', pinterest:'📌',
+  youtube:'▶️', instagram:'📸', twitter:'🐦',
+  facebook:'📘', reddit:'🤖',
   direct:'🔗', image:'🖼️', video:'🎬', audio:'🎵',
   document:'📄', webpage:'🌐', unknown:'🔗'
 };
@@ -2529,7 +2642,7 @@ function timeAgoFull(ts) {
 
 function getMediaBadge(item) {
   const t = (item.media_type || item.platform || '').toLowerCase();
-  if (t.includes('video') || t.includes('youtube') || t.includes('instagram') || t.includes('tiktok')) return 'video';
+  if (t.includes('video') || t.includes('youtube') || t.includes('instagram')) return 'video';
   if (t.includes('audio') || t.includes('mp3')) return 'audio';
   if (t.includes('image') || t.includes('png') || t.includes('jpg')) return 'image';
   if (t.includes('document') || t.includes('pdf')) return 'document';
