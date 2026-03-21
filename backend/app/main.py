@@ -84,15 +84,52 @@ app.add_middleware(
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
-    response.headers["X-Content-Type-Options"]  = "nosniff"
-    response.headers["X-Frame-Options"]         = "DENY"
-    response.headers["X-XSS-Protection"]        = "1; mode=block"
-    response.headers["Referrer-Policy"]         = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"]      = "geolocation=(), microphone=(), camera=()"
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    # Remove server info
+
+    # ── Core security headers ──────────────────────────────
+    response.headers["X-Content-Type-Options"]    = "nosniff"
+    response.headers["X-Frame-Options"]           = "DENY"
+    response.headers["X-XSS-Protection"]          = "1; mode=block"
+    response.headers["Referrer-Policy"]           = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"]        = "geolocation=(), microphone=(), camera=(), payment=()"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+    response.headers["X-DNS-Prefetch-Control"]    = "off"
+    response.headers["X-Download-Options"]        = "noopen"
+    response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
+
+    # ── Content Security Policy ────────────────────────────
+    # Carefully crafted to allow our app to work while blocking attacks
+    csp_parts = [
+        # Default — only same origin
+        "default-src 'self'",
+        # Scripts — inline needed for onclick handlers + our <script> block
+        "script-src 'self' 'unsafe-inline'",
+        # Styles — inline needed for style= attributes + Google Fonts
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        # Fonts — Google Fonts CDN only
+        "font-src 'self' https://fonts.gstatic.com",
+        # Images — same origin + data URIs + blob (downloads) + CDN thumbnails
+        "img-src 'self' data: blob: https://*.ytimg.com https://*.cdninstagram.com https://*.redd.it https://*.redditmedia.com",
+        # API fetch() calls — same origin only (all /api/v1/ calls)
+        "connect-src 'self'",
+        # Media — same origin + blob (video previews)
+        "media-src 'self' blob: https:",
+        # Block object/embed completely (Flash etc)
+        "object-src 'none'",
+        # Forms — same origin only (prevents form hijacking)
+        "form-action 'self'",
+        # Block iframes completely (clickjacking)
+        "frame-ancestors 'none'",
+        # Base tag — same origin only (prevents base tag injection attacks)
+        "base-uri 'self'",
+        # Force HTTPS for all subresources
+        "upgrade-insecure-requests",
+    ]
+    response.headers["Content-Security-Policy"] = "; ".join(csp_parts)
+
+    # ── Remove server fingerprint ──────────────────────────
     response.headers.pop("server", None)
     response.headers.pop("x-powered-by", None)
+
     return response
 
 # ── Request logging ────────────────────────────────────────
