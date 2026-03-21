@@ -1329,7 +1329,7 @@ footer a:hover{color:var(--amber);}
         <button class="dl-btn" style="flex:1;justify-content:center;height:44px;" id="verifyOtpBtn" onclick="verifyOtp()">Verify code →</button>
       </div>
       <div style="text-align:center;margin-top:12px;">
-        <a style="font-size:12px;color:var(--text-3);cursor:pointer;" onclick="showForgotForm()">Didn't receive it? Resend code</a>
+        <a style="font-size:12px;color:var(--text-3);cursor:pointer;" onclick="resendCode()">Didn't receive it? Resend code</a>
       </div>
     </div>
 
@@ -2825,19 +2825,24 @@ function showForgotForm() {
   if (fb) { fb.textContent = 'Send reset code'; fb.disabled = false; }
 }
 
+function _clearResetFields() {
+  ['otp1','otp2','otp3','otp4','otp5','otp6'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  ['newPassword','confirmPassword'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  const sf = document.getElementById('strengthFill'); if (sf) sf.style.width = '0';
+  const st = document.getElementById('strengthText'); if (st) st.textContent = '';
+  const errEl = document.getElementById('otpError'); if (errEl) errEl.style.display = 'none';
+  const btn = document.getElementById('verifyOtpBtn');
+  if (btn) { btn.textContent = 'Verify code →'; btn.disabled = false; }
+}
+
 function showLoginForm() {
   _hideAllForms();
+  _clearResetFields();
   document.getElementById('loginForm').style.display = '';
-  // Clear OTP fields
-  ['otp1','otp2','otp3','otp4','otp5','otp6'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
-  // Clear new password fields
-  ['newPassword','confirmPassword'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
 }
 
 async function sendResetCode() {
@@ -2881,6 +2886,22 @@ function otpMove(current, nextId) {
     const next = document.getElementById(nextId);
     if (next) next.focus();
   }
+}
+
+function resendCode() {
+  // Clear all OTP boxes
+  ['otp1','otp2','otp3','otp4','otp5','otp6'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  // Clear error
+  const errEl = document.getElementById('otpError');
+  if (errEl) errEl.style.display = 'none';
+  // Reset verify button
+  const btn = document.getElementById('verifyOtpBtn');
+  if (btn) { btn.textContent = 'Verify code →'; btn.disabled = false; }
+  // Go back to email form to resend
+  showForgotForm();
 }
 
 function autoVerifyOtp() {
@@ -2931,10 +2952,8 @@ async function verifyOtp() {
       btn.disabled    = false;
     }
   } catch(e) {
-    // If no verify-otp endpoint, just check locally and proceed
-    errEl.style.display = 'none';
-    _hideAllForms();
-    document.getElementById('newPasswordForm').style.display = '';
+    errEl.textContent = '❌ Could not verify code. Please try again.';
+    errEl.style.display = 'block';
     btn.textContent = 'Verify code →';
     btn.disabled    = false;
   }
