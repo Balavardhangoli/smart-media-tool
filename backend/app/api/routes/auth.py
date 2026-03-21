@@ -262,6 +262,32 @@ async def forgot_password(
 
 
 # ──────────────────────────────────────────────────────────
+#  VERIFY OTP — Check if OTP is valid (without resetting)
+# ──────────────────────────────────────────────────────────
+@router.post("/verify-otp")
+async def verify_otp(body: dict):
+    """Verify OTP is valid without consuming it."""
+    email = body.get("email", "").strip().lower()
+    otp   = body.get("otp", "").strip()
+
+    if not email or not otp:
+        raise HTTPException(status_code=400, detail="Email and OTP are required.")
+
+    stored = _otp_store.get(email)
+    if not stored:
+        raise HTTPException(status_code=404, detail="No reset code found. Please request a new one.")
+
+    if datetime.utcnow() > stored["expires_at"]:
+        del _otp_store[email]
+        raise HTTPException(status_code=400, detail="Reset code has expired. Please request a new one.")
+
+    if stored["otp"] != otp:
+        raise HTTPException(status_code=400, detail="Invalid reset code. Please check and try again.")
+
+    return {"valid": True, "message": "OTP verified successfully."}
+
+
+# ──────────────────────────────────────────────────────────
 #  RESET PASSWORD — Step 2: Verify OTP + Set New Password
 # ──────────────────────────────────────────────────────────
 @router.post("/reset-password")
