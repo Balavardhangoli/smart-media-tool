@@ -6,6 +6,10 @@ import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+_limiter = Limiter(key_func=get_remote_address)
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -272,6 +276,7 @@ async def fetch(
 #  BULK ANALYZE
 # ══════════════════════════════════════════════════════════
 @router.post("/bulk", response_model=BulkAnalyzeResponse)
+@_limiter.limit("5/minute")
 async def bulk_analyze(
     body: BulkAnalyzeRequest,
     request: Request,
@@ -283,13 +288,25 @@ async def bulk_analyze(
             detail="Maximum 20 URLs per bulk request.",
         )
 
-    results = []
+    # Deduplicate URLs
+    seen = set()
+    unique_urls = []
     for url in body.urls:
+        clean = url.strip()
+        if clean and clean not in seen:
+            seen.add(clean)
+            unique_urls.append(clean)
+
+    # Process all URLs concurrently for speed
+    async def process_single(url: str) -> dict:
         try:
-            validate_url(url.strip())
-            detection = detect_platform(url.strip())
-            result    = await process_url(detection)
-            results.append({
+            validate_url(url)
+            if url.lower().startswith(('javascript:', 'data:', 'vbscript:', 'file:')):
+                raise ValueError("URL scheme not allowed.")
+            detection = detect_platform(url)
+            # 25 second timeout per URL
+            result = await asyncio.wait_for(process_url(detection), timeout=25.0)
+            return {
                 "url":      url,
                 "success":  result.success,
                 "title":    result.title,
@@ -300,18 +317,37 @@ async def bulk_analyze(
                         "url":        o.url,
                         "media_type": o.media_type,
                         "format":     o.format,
+                        "file_size":  o.file_size or 0,
                     }
                     for o in result.options
                 ],
                 "error": result.error,
-            })
+            }
+        except asyncio.TimeoutError:
+            return {
+                "url":     url,
+                "success": False,
+                "error":   "Request timed out. URL may be slow or unavailable.",
+                "options": [],
+            }
         except Exception as e:
-            results.append({
+            return {
                 "url":     url,
                 "success": False,
                 "error":   str(e),
                 "options": [],
-            })
+            }
+
+    # Process sequentially with small delay to avoid RapidAPI rate limits
+    # (RapidAPI free plan: 5 req/second — concurrent calls risk 429 errors)
+    results = []
+    for i, url in enumerate(unique_urls):
+        result = await process_single(url)
+        results.append(result)
+        # Add 0.4s delay between calls to stay within RapidAPI rate limit
+        # Skip delay after last URL
+        if i < len(unique_urls) - 1:
+            await asyncio.sleep(0.4)
 
     success_count = sum(1 for r in results if r["success"])
 
