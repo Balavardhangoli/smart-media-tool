@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
 
-<!-- ── Primary SEO for smart media tool ── -->
+<!-- ── Primary SEO ── -->
 <title>Video Downloader Online Free — Download Instagram Reels, YouTube Videos</title>
 <meta name="description" content="Paste any link to download Instagram Reels, YouTube videos, Facebook videos, images and PDFs. 100% free, no signup required to try. Fast online media downloader."/>
 <meta name="keywords" content="instagram downloader, instagram reel downloader, download instagram reels, instagram video downloader online, save instagram video, instagram reel download without watermark, download instagram post online free, instagram photo downloader online, save instagram reel to phone, how to download instagram reel without app, youtube downloader, video downloader online free, media downloader, social media downloader, online video downloader, download youtube video, facebook video downloader, reddit video downloader"/>
@@ -1511,7 +1511,7 @@ document.getElementById('registerSubmit').addEventListener('click', async () => 
     alert('❌ Please enter your email.'); return;
   }
   // Strict email format validation
-  const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+  const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z][a-zA-Z0-9.\-]*\.[a-zA-Z]{2,}$/;
   if (!emailRegex.test(email)) {
     alert('❌ Please enter a valid email address.\n\nExamples:\n✅ name@gmail.com\n✅ user@yahoo.com\n❌ hh@1gmail.com (invalid domain)'); return;
   }
@@ -1827,7 +1827,7 @@ async function sendResetCode() {
     return;
   }
 
-  const emailRe = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+  const emailRe = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z][a-zA-Z0-9.\-]*\.[a-zA-Z]{2,}$/;
   if (!emailRe.test(email)) {
     if (errBox) { errBox.textContent = '❌ Invalid email format. Example: name@gmail.com'; errBox.style.display = 'block'; }
     return;
