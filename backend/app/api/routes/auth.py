@@ -73,22 +73,31 @@ async def register(request: Request, body: UserRegister, db: AsyncSession = Depe
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Email already registered.")
 
-    # Check username uniqueness
-    existing = await db.execute(select(User).where(User.username == body.username))
+    # Check email uniqueness
+    existing = await db.execute(select(User).where(User.email == body.email))
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=409, detail="Username already taken.")
+        raise HTTPException(status_code=409, detail="Email already registered.")
 
-    # Additional validation
+    # ── Username validation ────────────────────────────────
+    # Allow letters, numbers, spaces, hyphens, underscores
+    # Username does NOT need to be unique — only email is unique
+    username = body.username.strip()
+    if len(username) < 2:
+        raise HTTPException(status_code=400, detail="Username must be at least 2 characters.")
+    if len(username) > 50:
+        raise HTTPException(status_code=400, detail="Username too long. Maximum 50 characters.")
+    # Allow: letters, numbers, spaces, hyphens, underscores, dots
+    import re as _re
+    if not _re.match(r'^[a-zA-Z0-9 ._\-]+$', username):
+        raise HTTPException(status_code=400, detail="Username can only contain letters, numbers, spaces, dots, hyphens and underscores.")
+
+    # Password length check
     if len(body.password) > 128:
         raise HTTPException(status_code=400, detail="Password too long. Maximum 128 characters.")
-    if len(body.username) > 50:
-        raise HTTPException(status_code=400, detail="Username too long. Maximum 50 characters.")
-    if not body.username.replace('_','').replace('-','').isalnum():
-        raise HTTPException(status_code=400, detail="Username can only contain letters, numbers, hyphens and underscores.")
 
     user = User(
         email=body.email,
-        username=body.username,
+        username=username,  # use trimmed version
         hashed_password=hash_password(body.password),
     )
     db.add(user)
