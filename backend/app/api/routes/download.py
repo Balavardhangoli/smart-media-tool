@@ -1,6 +1,6 @@
 """
 api/routes/download.py
-Download routes: analyze, fetch, bulk...in download
+Download routes: analyze, fetch, bulk.
 """
 import asyncio
 from typing import Optional
