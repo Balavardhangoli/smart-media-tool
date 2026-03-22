@@ -250,6 +250,16 @@ async def handle_instagram(detection: DetectionResult, **kwargs) -> DownloadResu
     result = await _rapidapi_download(detection.url)
     if result.success:
         result.title = result.title or "Instagram Post"
+    else:
+        # Give more helpful error messages for Instagram
+        if result.error and "private" in result.error.lower():
+            result.error = "This Instagram account is private. Only public posts can be downloaded."
+        elif result.error and ("not found" in result.error.lower() or "404" in result.error):
+            result.error = "Instagram post not found. It may have been deleted."
+        elif result.error and "429" in result.error:
+            result.error = "Too many requests. Please wait a moment and try again."
+        elif not result.options:
+            result.error = "Could not download this Instagram post. It may be private, deleted, or a live video."
     return result
 
 
