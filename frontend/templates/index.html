@@ -1510,6 +1510,11 @@ document.getElementById('registerSubmit').addEventListener('click', async () => 
   if (!email) {
     alert('❌ Please enter your email.'); return;
   }
+  // Strict email format validation
+  const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(email)) {
+    alert('❌ Please enter a valid email address.\n\nExamples:\n✅ name@gmail.com\n✅ user@yahoo.com\n❌ hh@1gmail.com (invalid domain)'); return;
+  }
   if (!username) {
     alert('❌ Please enter a username.'); return;
   }
@@ -1822,8 +1827,9 @@ async function sendResetCode() {
     return;
   }
 
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    if (errBox) { errBox.textContent = 'Please enter a valid email address.'; errBox.style.display = 'block'; }
+  const emailRe = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRe.test(email)) {
+    if (errBox) { errBox.textContent = '❌ Invalid email format. Example: name@gmail.com'; errBox.style.display = 'block'; }
     return;
   }
 
