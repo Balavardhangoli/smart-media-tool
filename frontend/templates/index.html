@@ -166,12 +166,37 @@
 
   <!-- ── MAIN CARD ── -->
   <div class="main-card" id="mainCard">
+    <!-- Options FIRST — user selects quality/format before pasting URL -->
+    <div class="opts-row" style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+      <div class="opt-group">
+        <span class="opt-label">Quality</span>
+        <select class="opt-select" id="qualitySelect" onchange="onQualityChange()">
+          <option value="best">Best Available</option>
+          <option value="1080">1080p</option>
+          <option value="720">720p</option>
+          <option value="480">480p</option>
+          <option value="360">360p</option>
+          <option value="audio">Audio Only</option>
+        </select>
+      </div>
+      <div class="opt-group">
+        <span class="opt-label">Format</span>
+        <select class="opt-select" id="formatSelect">
+          <option value="auto">Auto Detect</option>
+          <option value="mp4">MP4 (Video)</option>
+          <option value="mp3">MP3 (Audio)</option>
+          <option value="webm">WebM</option>
+        </select>
+      </div>
+      <button class="toggle-bulk" id="toggleBulk">⊞ Bulk Mode</button>
+    </div>
+
     <div class="input-section">
       <div class="input-label">Enter URL</div>
       <div class="url-row">
         <div class="url-wrap">
           <svg class="url-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-          <input class="url-input" id="urlInput" type="url" placeholder="https://example.com/image.jpg or instagram.com/p/..." autocomplete="off" spellcheck="false"/>
+          <input class="url-input" id="urlInput" type="url" placeholder="https://youtube.com/watch?v=... or instagram.com/p/..." autocomplete="off" spellcheck="false"/>
           <button class="clear-btn" id="clearBtn" title="Clear">✕</button>
         </div>
         <button class="dl-btn" id="analyzeBtn">
@@ -191,34 +216,6 @@
         <span class="detect-text">Detected: <span class="detect-platform" id="detectPlatform">—</span></span>
         <span style="font-size:11px;color:var(--text-3)" id="detectNote"></span>
       </div>
-    </div>
-
-    <!-- Options -->
-    <div class="opts-row">
-      <div class="opt-group">
-        <span class="opt-label">Quality</span>
-        <select class="opt-select" id="qualitySelect" onchange="onQualityChange()">
-          <option value="best">Best Available</option>
-          <option value="1080">1080p</option>
-          <option value="720">720p</option>
-          <option value="480">480p</option>
-          <option value="360">360p</option>
-          <option value="audio">Audio Only</option>
-        </select>
-      </div>
-      <div class="opt-group">
-        <span class="opt-label">Format</span>
-        <select class="opt-select" id="formatSelect">
-          <option value="auto">Auto</option>
-          <option value="mp4">MP4</option>
-          <option value="mp3">MP3</option>
-          <option value="webm">WebM</option>
-          <option value="jpg">JPG</option>
-          <option value="webp">WebP</option>
-          <option value="png">PNG</option>
-        </select>
-      </div>
-      <button class="toggle-bulk" id="toggleBulk">⊞ Bulk Mode</button>
     </div>
 
     <!-- Progress -->
@@ -996,7 +993,7 @@ const historyList  = document.getElementById('historyList');
 
 const PLATFORM_MAP = [
   { re:/youtube\.com|youtu\.be/, name:'YouTube', icon:'▶️', note:'Video / Short' },
-  { re:/instagram\.com|instagr\.am/, name:'Instagram', icon:'📸', note:'Post / Reel / Story' },
+  { re:/instagram\.com|instagr\.am|instagram\.com\/stories/, name:'Instagram', icon:'📸', note:'Post / Reel / Story' },
 
   { re:/twitter\.com|x\.com/, name:'Twitter / X', icon:'🐦', note:'Tweet Media' },
   { re:/facebook\.com|fb\.com|fb\.watch/, name:'Facebook', icon:'📘', note:'Video / Photo' },
@@ -1100,6 +1097,11 @@ toggleBulk.addEventListener('click', () => {
   toggleBulk.textContent = isBulkMode ? '✕ Single Mode' : '⊞ Bulk Mode';
   urlInput.style.display = isBulkMode ? 'none' : '';
   document.querySelector('.url-icon').style.display = isBulkMode ? 'none' : '';
+  if (isBulkMode) {
+    showStatus('info', '📦 Bulk mode: Paste up to 20 URLs (one per line). All URLs processed simultaneously.');
+  } else {
+    showStatus('',''); statusMsg.classList.remove('show');
+  }
 });
 
 analyzeBtn.addEventListener('click', triggerAnalyze);
@@ -1154,7 +1156,7 @@ async function triggerAnalyze() {
 
 async function triggerBulk() {
   const raw  = bulkInput.value.trim();
-  const urls = raw.split('\n').map(u => u.trim()).filter(Boolean);
+  const urls = [...new Set(raw.split('\n').map(u => u.trim()).filter(u => u.length > 5 && u.includes('.')))];
   if (!urls.length) { showStatus('error','⚠️ Enter at least one URL.'); return; }
   if (urls.length > 20) { showStatus('error','⚠️ Maximum 20 URLs per bulk request.'); return; }
 
@@ -1162,7 +1164,7 @@ async function triggerBulk() {
   setBtnLoading(true);
 
   try {
-    await animateProgress(0, 40, 600, `Processing ${urls.length} URLs...`, '');
+    await animateProgress(0, 20, 400, `Preparing ${urls.length} URLs...`, 'This may take a moment');
     const res  = await fetch(`${API}/download/bulk`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
@@ -1172,7 +1174,13 @@ async function triggerBulk() {
     await animateProgress(40, 100, 500, 'Done!', '');
 
     renderBulkResults(data);
-    showStatus('success', `✅ Processed ${data.success_count}/${data.total} URLs successfully.`);
+    if (data.success_count === data.total) {
+      showStatus('success', `✅ All ${data.total} URLs processed successfully!`);
+    } else if (data.success_count === 0) {
+      showStatus('error', `❌ All URLs failed. Check if posts are public.`);
+    } else {
+      showStatus('info', `⚠️ ${data.success_count}/${data.total} URLs succeeded. ${data.total - data.success_count} failed — may be private posts.`);
+    }
   } catch (e) {
     showStatus('error', `❌ ${e.message}`);
   } finally {
@@ -1302,16 +1310,69 @@ function renderBulkResults(data) {
   data.results.forEach((r, i) => {
     const item = document.createElement('div');
     item.className = 'option-item';
+
     if (!r.success) {
-      item.innerHTML = `<div class="option-label" style="color:var(--red)">❌ ${r.url.slice(0,50)}</div><div class="option-meta">${r.error || 'Failed'}</div>`;
-    } else {
-      const firstOpt = r.options[0];
+      // Failed URL
       item.innerHTML = `
-        <div class="option-label">✅ ${r.title || r.url.slice(0,50)}</div>
-        <div class="option-meta">${r.platform || ''} · ${r.options.length} option${r.options.length!==1?'s':''}</div>
-        ${firstOpt ? `<button class="option-dl-btn">↓ DL</button>` : ''}`;
-      if (firstOpt) {
-        item.querySelector('.option-dl-btn').onclick = () => streamDownload(firstOpt.url, firstOpt.label);
+        <div class="option-left">
+          <div class="option-label" style="color:var(--red)">❌ ${(r.url||'').slice(0,55)}</div>
+          <div class="option-meta">${r.error || 'Failed to fetch'}</div>
+        </div>`;
+    } else {
+      // Success — pick best option based on quality dropdown
+      const selectedQuality = document.getElementById('qualitySelect').value;
+      let bestOpt = r.options[0];
+
+      if (selectedQuality === 'audio') {
+        const audioOpt = r.options.find(o =>
+          (o.label||'').toLowerCase().includes('mp3') ||
+          (o.label||'').toLowerCase().includes('kbps')
+        );
+        if (audioOpt) bestOpt = audioOpt;
+      } else if (selectedQuality !== 'best') {
+        const qOpt = r.options.find(o =>
+          (o.label||'').toLowerCase().includes(selectedQuality.replace('p',''))
+        );
+        if (qOpt) bestOpt = qOpt;
+      } else {
+        // Best = largest file size video
+        const videoOpts = r.options.filter(o =>
+          !(o.label||'').toLowerCase().includes('mp3') &&
+          !(o.label||'').toLowerCase().includes('kbps')
+        );
+        if (videoOpts.length) {
+          bestOpt = videoOpts.reduce((a,b) => (b.file_size||0) > (a.file_size||0) ? b : a);
+        }
+      }
+
+      const shortUrl = (r.url||'').replace(/^https?:\/\/(www\.)?/,'').slice(0,45);
+      item.innerHTML = `
+        <div class="option-left">
+          <div class="option-label">✅ ${r.title || shortUrl}</div>
+          <div class="option-meta">${r.platform||''} · ${bestOpt ? bestOpt.label : ''} · ${r.options.length} option${r.options.length!==1?'s':''}</div>
+        </div>
+        ${bestOpt ? `<button class="option-dl-btn bulk-dl-btn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download
+        </button>` : ''}`;
+
+      if (bestOpt) {
+        const dlBtn = item.querySelector('.bulk-dl-btn');
+        dlBtn.onclick = async function() {
+          if (dlBtn.disabled) return;
+          dlBtn.disabled = true;
+          dlBtn.innerHTML = `<span class="btn-spinner"></span> Downloading...`;
+          dlBtn.style.opacity = '0.7';
+          try {
+            await streamDownload(bestOpt.url, bestOpt.label);
+          } finally {
+            setTimeout(() => {
+              dlBtn.disabled = false;
+              dlBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download`;
+              dlBtn.style.opacity = '1';
+            }, 3000);
+          }
+        };
       }
     }
     optionsList.appendChild(item);
