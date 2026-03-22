@@ -64,7 +64,7 @@ async def get_current_user(
 @limiter.limit("5/minute")
 async def register(request: Request, body: UserRegister, db: AsyncSession = Depends(get_db)):
     # ── Validate email format ──────────────────────────────
-    email_regex = r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$'
+    email_regex = r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z][a-zA-Z0-9.\-]*\.[a-zA-Z]{2,}$'
     if not re.match(email_regex, body.email):
         raise HTTPException(status_code=400, detail="Please enter a valid email address (e.g. name@gmail.com).")
 
