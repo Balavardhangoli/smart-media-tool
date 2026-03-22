@@ -3,6 +3,7 @@ api/routes/auth.py
 Authentication endpoints: register, login, token refresh, API keys, password reset.
 """
 import random
+import re
 import string
 from datetime import timezone, datetime, timedelta
 from typing import List
@@ -62,6 +63,11 @@ async def get_current_user(
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
 async def register(request: Request, body: UserRegister, db: AsyncSession = Depends(get_db)):
+    # ── Validate email format ──────────────────────────────
+    email_regex = r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_regex, body.email):
+        raise HTTPException(status_code=400, detail="Please enter a valid email address (e.g. name@gmail.com).")
+
     # Check email uniqueness
     existing = await db.execute(select(User).where(User.email == body.email))
     if existing.scalar_one_or_none():
