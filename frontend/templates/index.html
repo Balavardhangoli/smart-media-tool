@@ -1513,7 +1513,7 @@ document.getElementById('registerSubmit').addEventListener('click', async () => 
   // Strict email format validation
   const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z][a-zA-Z0-9.\-]*\.[a-zA-Z]{2,}$/;
   if (!emailRegex.test(email)) {
-    alert('❌ Please enter a valid email address.\n\nExamples:\n✅ name@gmail.com\n✅ user@yahoo.com\n❌ hh@1gmail.com (invalid domain)'); return;
+    alert('❌ Please enter a valid email address.'); return;
   }
   if (!username) {
     alert('❌ Please enter a username.'); return;
