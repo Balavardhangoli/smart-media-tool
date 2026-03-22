@@ -1518,8 +1518,15 @@ document.getElementById('registerSubmit').addEventListener('click', async () => 
   if (!username) {
     alert('❌ Please enter a username.'); return;
   }
-  if (username.length < 3) {
-    alert('❌ Username must be at least 3 characters.'); return;
+  if (username.trim().length < 2) {
+    alert('❌ Username must be at least 2 characters.'); return;
+  }
+  if (username.length > 50) {
+    alert('❌ Username too long. Maximum 50 characters.'); return;
+  }
+  // Allow letters, numbers, spaces, dots, hyphens, underscores
+  if (!/^[a-zA-Z0-9 ._\-]+$/.test(username)) {
+    alert('❌ Username can only contain letters, numbers, spaces, dots, hyphens and underscores.'); return;
   }
   if (password.length < 8) {
     alert('❌ Password must be at least 8 characters.\n\nPlease use 8 or more characters.'); return;
