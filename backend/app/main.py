@@ -127,8 +127,14 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Content-Security-Policy"] = "; ".join(csp_parts)
 
     # ── Remove server fingerprint ──────────────────────────
-    response.headers.pop("server", None)
-    response.headers.pop("x-powered-by", None)
+    try:
+        del response.headers["server"]
+    except KeyError:
+        pass
+    try:
+        del response.headers["x-powered-by"]
+    except KeyError:
+        pass
 
     return response
 
