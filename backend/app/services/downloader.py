@@ -121,10 +121,15 @@ async def _rapidapi_download(url: str) -> DownloadResult:
                 continue
             quality   = item.get("quality", "") or f"Option {i+1}"
             extension = item.get("extension", "mp4").lower()
-            size      = item.get("size") or 0
 
-            # Skip items with size 0 unless it is the only option
-            # (size 0 means server-side merge required — may not download correctly)
+            # RapidAPI sometimes returns size as string '0' or '5152734'
+            # Always convert to int safely
+            raw_size = item.get("size", 0)
+            try:
+                size = int(float(str(raw_size))) if raw_size not in (None, '', 'null') else 0
+            except (ValueError, TypeError):
+                size = 0
+
             media_type = "audio" if extension in ("mp3", "m4a", "ogg", "wav") else "video"
 
             options.append(MediaOption(
@@ -289,7 +294,7 @@ async def handle_twitter(detection: DetectionResult, **kwargs) -> DownloadResult
 #  FACEBOOK
 # ══════════════════════════════════════════════════════════
 async def handle_facebook(detection: DetectionResult, **kwargs) -> DownloadResult:
-    """Use RapidAPI for Facebook downloads."""
+    """Use RapidAPI for Facebook video and Reel downloads."""
     result = await _rapidapi_download(detection.url)
     if result.success:
         result.title = result.title or "Facebook Video"
@@ -311,11 +316,20 @@ async def handle_vimeo(detection: DetectionResult, **kwargs) -> DownloadResult:
 #  REDDIT
 # ══════════════════════════════════════════════════════════
 async def handle_reddit(detection: DetectionResult, **kwargs) -> DownloadResult:
-    url      = detection.url
-    json_url = url.rstrip("/") + ".json"
+    url = detection.url
 
     async with _make_client() as client:
         try:
+            # Handle Reddit short URLs (/s/ format) — follow redirect first
+            if "/s/" in url:
+                redirect_resp = await client.get(
+                    url,
+                    headers=BROWSER_HEADERS,
+                    follow_redirects=True,
+                )
+                url = str(redirect_resp.url)
+
+            json_url = url.rstrip("/") + ".json"
             resp = await client.get(
                 json_url,
                 headers={**BROWSER_HEADERS, "Accept": "application/json"},
