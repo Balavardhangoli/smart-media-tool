@@ -111,6 +111,14 @@ async def _rapidapi_download(url: str) -> DownloadResult:
             error=f"Download service error (HTTP {resp.status_code})",
         )
 
+    # Check if RapidAPI returned an error field
+    if data.get("error"):
+        api_error = str(data["error"])
+        return DownloadResult(
+            success=False,
+            error=f"Could not extract media: {api_error}",
+        )
+
     options = []
 
     # Use medias array — skip the top-level url field (it points back to YouTube)
@@ -288,7 +296,6 @@ async def handle_tiktok(detection: DetectionResult, **kwargs) -> DownloadResult:
 # ══════════════════════════════════════════════════════════
 async def handle_twitter(detection: DetectionResult, **kwargs) -> DownloadResult:
     """Use RapidAPI for Twitter/X downloads."""
-    # Try both twitter.com and x.com formats
     url = detection.url
     urls_to_try = [url]
     if "x.com" in url:
@@ -305,11 +312,25 @@ async def handle_twitter(detection: DetectionResult, **kwargs) -> DownloadResult
     if result.success:
         result.title = result.title or "Twitter Video"
     else:
-        result.error = (
-            result.error or
-            "Could not download this Twitter/X video. "
-            "Make sure the tweet contains a video and the account is public."
-        )
+        # Give specific helpful error for Twitter
+        error = result.error or ""
+        if "Unknown error" in error:
+            result.error = (
+                "Could not download this tweet. Possible reasons:\n"
+                "• The tweet contains an image (not a video)\n"
+                "• The tweet is very old (2014 or earlier)\n"
+                "• The account is private or suspended\n"
+                "• The media has been deleted\n"
+                "Try a tweet that contains a video posted after 2018."
+            )
+        elif "private" in error.lower():
+            result.error = "This Twitter/X account is private. Only public tweets can be downloaded."
+        else:
+            result.error = (
+                result.error or
+                "Could not download this Twitter/X video. "
+                "Make sure the tweet contains a video and the account is public."
+            )
     return result
 
 
