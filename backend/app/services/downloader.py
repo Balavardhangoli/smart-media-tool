@@ -31,7 +31,7 @@ BROWSER_HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
 
-# ── RapidAPI Config ────────────────────────────────────────
+# ── RapidAPI Configuration ────────────────────────────────────────
 RAPIDAPI_KEY  = os.getenv("RAPIDAPI_KEY", "")
 RAPIDAPI_HOST = os.getenv("RAPIDAPI_HOST", "snap-video3.p.rapidapi.com")
 RAPIDAPI_URL  = f"https://{RAPIDAPI_HOST}/download"
