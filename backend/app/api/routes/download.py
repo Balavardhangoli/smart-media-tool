@@ -70,25 +70,47 @@ async def analyze(
 
     if not result.success:
         raise HTTPException(
-            status_code=422,
+            status_code=400,
             detail=result.error or "Could not process this URL.",
         )
 
     # Build response
-    options = [
-        MediaOptionSchema(
-            label=opt.label,
-            url=opt.url,
-            media_type=opt.media_type,
-            mime_type=opt.mime_type,
-            file_size=opt.file_size,
-            width=opt.width,
-            height=opt.height,
-            format=opt.format,
-            thumbnail=opt.thumbnail,
-        )
-        for opt in result.options
-    ]
+    options = []
+    for opt in result.options:
+        try:
+            # Safely convert all fields to prevent 422 schema validation errors
+            # RapidAPI sometimes returns wrong types (str instead of int etc)
+            file_size = opt.file_size
+            if file_size is not None:
+                try:
+                    file_size = int(float(str(file_size)))
+                    if file_size <= 0:
+                        file_size = None
+                except (ValueError, TypeError):
+                    file_size = None
+
+            width  = int(opt.width)  if opt.width  else None
+            height = int(opt.height) if opt.height else None
+
+            # Ensure URL is a valid string
+            opt_url = str(opt.url).strip() if opt.url else None
+            if not opt_url or not opt_url.startswith("http"):
+                continue  # skip invalid URLs
+
+            options.append(MediaOptionSchema(
+                label=str(opt.label or "Download"),
+                url=opt_url,
+                media_type=str(opt.media_type or "video"),
+                mime_type=str(opt.mime_type) if opt.mime_type else None,
+                file_size=file_size,
+                width=width,
+                height=height,
+                format=str(opt.format) if opt.format else None,
+                thumbnail=str(opt.thumbnail) if opt.thumbnail else None,
+            ))
+        except Exception as e:
+            logger.warning(f"skipping_invalid_option: {e}")
+            continue
 
     response = AnalyzeResponse(
         success=True,
@@ -313,13 +335,14 @@ async def bulk_analyze(
                 "platform": detection.platform.value,
                 "options":  [
                     {
-                        "label":      o.label,
-                        "url":        o.url,
-                        "media_type": o.media_type,
-                        "format":     o.format,
-                        "file_size":  o.file_size or 0,
+                        "label":      str(o.label or "Download"),
+                        "url":        str(o.url or ""),
+                        "media_type": str(o.media_type or "video"),
+                        "format":     str(o.format) if o.format else None,
+                        "file_size":  int(float(str(o.file_size))) if o.file_size else 0,
                     }
                     for o in result.options
+                    if o.url and str(o.url).startswith("http")
                 ],
                 "error": result.error,
             }
