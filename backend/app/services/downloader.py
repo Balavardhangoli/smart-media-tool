@@ -298,6 +298,19 @@ async def handle_facebook(detection: DetectionResult, **kwargs) -> DownloadResul
     result = await _rapidapi_download(detection.url)
     if result.success:
         result.title = result.title or "Facebook Video"
+    else:
+        # Friendlier Facebook error messages
+        if result.error and "404" in str(result.error):
+            result.error = "Facebook video not found. It may be private or deleted."
+        elif result.error and "private" in str(result.error).lower():
+            result.error = "This Facebook video is private. Only public videos can be downloaded."
+        elif result.error and "429" in str(result.error):
+            result.error = "Too many requests. Please wait a moment and try again."
+        else:
+            result.error = (result.error or
+                "Could not download this Facebook video. "
+                "Make sure the video is public and the URL is correct. "
+                "Facebook Reels at facebook.com/reel/... are supported.")
     return result
 
 
@@ -329,11 +342,17 @@ async def handle_reddit(detection: DetectionResult, **kwargs) -> DownloadResult:
                 )
                 url = str(redirect_resp.url)
 
-            json_url = url.rstrip("/") + ".json"
+            # Strip query params (?share_id=...&utm_...) before adding .json
+            # Otherwise URL becomes: /post/?utm_source=share.json (404)
+            clean_url = url.split("?")[0].rstrip("/")
+            json_url  = clean_url + "/.json"
+
             resp = await client.get(
                 json_url,
                 headers={**BROWSER_HEADERS, "Accept": "application/json"},
             )
+            if resp.status_code == 404:
+                return DownloadResult(success=False, error="Reddit post not found. It may have been deleted.")
             data = resp.json()
         except Exception as e:
             return DownloadResult(success=False, error=f"Reddit API error: {e}")
