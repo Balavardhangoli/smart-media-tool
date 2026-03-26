@@ -6,10 +6,6 @@ import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from slowapi import Limiter
-from slowapi.util import get_remote_address
-
-_limiter = Limiter(key_func=get_remote_address)
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -276,7 +272,6 @@ async def fetch(
 #  BULK ANALYZE
 # ══════════════════════════════════════════════════════════
 @router.post("/bulk", response_model=BulkAnalyzeResponse)
-@_limiter.limit("5/minute")
 async def bulk_analyze(
     body: BulkAnalyzeRequest,
     request: Request,
@@ -286,6 +281,11 @@ async def bulk_analyze(
         raise HTTPException(
             status_code=400,
             detail="Maximum 20 URLs per bulk request.",
+        )
+    if len(body.urls) == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Please provide at least one URL.",
         )
 
     # Deduplicate URLs
