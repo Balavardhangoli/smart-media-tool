@@ -31,7 +31,7 @@ BROWSER_HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
 
-# ── RapidAPI Configuration ────────────────────────────────────────
+# ── RapidAPI Config ────────────────────────────────────────
 RAPIDAPI_KEY  = os.getenv("RAPIDAPI_KEY", "")
 RAPIDAPI_HOST = os.getenv("RAPIDAPI_HOST", "snap-video3.p.rapidapi.com")
 RAPIDAPI_URL  = f"https://{RAPIDAPI_HOST}/download"
@@ -114,6 +114,10 @@ async def _rapidapi_download(url: str) -> DownloadResult:
     options = []
 
     # Use medias array — skip the top-level url field (it points back to YouTube)
+    # Some platforms return 'links' instead of 'medias'
+    media_list = data.get("medias") or data.get("links") or []
+    if media_list:
+        data["medias"] = media_list  # normalize to medias key
     if data.get("medias"):
         for i, item in enumerate(data["medias"]):
             item_url = item.get("url") or item.get("videoUrl")
@@ -284,9 +288,28 @@ async def handle_tiktok(detection: DetectionResult, **kwargs) -> DownloadResult:
 # ══════════════════════════════════════════════════════════
 async def handle_twitter(detection: DetectionResult, **kwargs) -> DownloadResult:
     """Use RapidAPI for Twitter/X downloads."""
-    result = await _rapidapi_download(detection.url)
+    # Try both twitter.com and x.com formats
+    url = detection.url
+    urls_to_try = [url]
+    if "x.com" in url:
+        urls_to_try.append(url.replace("x.com", "twitter.com"))
+    elif "twitter.com" in url:
+        urls_to_try.append(url.replace("twitter.com", "x.com"))
+
+    result = DownloadResult(success=False, error="")
+    for try_url in urls_to_try:
+        result = await _rapidapi_download(try_url)
+        if result.success:
+            break
+
     if result.success:
         result.title = result.title or "Twitter Video"
+    else:
+        result.error = (
+            result.error or
+            "Could not download this Twitter/X video. "
+            "Make sure the tweet contains a video and the account is public."
+        )
     return result
 
 
@@ -295,11 +318,31 @@ async def handle_twitter(detection: DetectionResult, **kwargs) -> DownloadResult
 # ══════════════════════════════════════════════════════════
 async def handle_facebook(detection: DetectionResult, **kwargs) -> DownloadResult:
     """Use RapidAPI for Facebook video and Reel downloads."""
-    result = await _rapidapi_download(detection.url)
+    url = detection.url
+
+    # Build list of URL formats to try — RapidAPI supports some but not all
+    urls_to_try = [url]
+
+    # Convert /reel/ID/ → /videos/ID/ and /watch?v=ID (RapidAPI understands these better)
+    if "/reel/" in url:
+        reel_id = re.search(r"/reel/(\d+)", url)
+        if reel_id:
+            vid_id = reel_id.group(1)
+            urls_to_try.append(f"https://www.facebook.com/watch?v={vid_id}")
+            urls_to_try.append(f"https://www.facebook.com/video/{vid_id}/")
+            urls_to_try.append(f"https://fb.watch/{vid_id}")
+
+    # Try each URL format until one works
+    result = DownloadResult(success=False, error="")
+    for try_url in urls_to_try:
+        result = await _rapidapi_download(try_url)
+        if result.success:
+            break
+
     if result.success:
         result.title = result.title or "Facebook Video"
     else:
-        # Friendlier Facebook error messages
+        # Friendly error messages
         if result.error and "404" in str(result.error):
             result.error = "Facebook video not found. It may be private or deleted."
         elif result.error and "private" in str(result.error).lower():
@@ -307,10 +350,11 @@ async def handle_facebook(detection: DetectionResult, **kwargs) -> DownloadResul
         elif result.error and "429" in str(result.error):
             result.error = "Too many requests. Please wait a moment and try again."
         else:
-            result.error = (result.error or
+            result.error = (
                 "Could not download this Facebook video. "
-                "Make sure the video is public and the URL is correct. "
-                "Facebook Reels at facebook.com/reel/... are supported.")
+                "Please make sure: 1) The video is public, 2) You are logged out of Facebook, "
+                "3) Try copying the link from facebook.com/watch?v=... format instead of /reel/ URL."
+            )
     return result
 
 
