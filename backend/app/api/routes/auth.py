@@ -86,10 +86,10 @@ async def register(request: Request, body: UserRegister, db: AsyncSession = Depe
         raise HTTPException(status_code=400, detail="Username must be at least 2 characters.")
     if len(username) > 50:
         raise HTTPException(status_code=400, detail="Username too long. Maximum 50 characters.")
-    # Allow: letters, numbers, spaces, hyphens, underscores, dots
+    # Allow: letters, numbers, dots, hyphens, underscores — NO spaces
     import re as _re
-    if not _re.match(r'^[a-zA-Z0-9 ._\-]+$', username):
-        raise HTTPException(status_code=400, detail="Username can only contain letters, numbers, spaces, dots, hyphens and underscores.")
+    if not _re.match(r'^[a-zA-Z0-9._\-]+$', username):
+        raise HTTPException(status_code=400, detail="Username can only contain letters, numbers, dots (.), hyphens (-) and underscores (_). No spaces allowed.")
 
     # Password length check
     if len(body.password) > 128:
@@ -455,6 +455,43 @@ async def revoke_api_key(
         raise HTTPException(status_code=404, detail="API key not found.")
     key.is_active = False
     await db.commit()
+
+# ──────────────────────────────────────────────────────────
+#  UPDATE PROFILE (username + avatar color)
+# ──────────────────────────────────────────────────────────
+@router.put("/update-profile")
+async def update_profile(
+    body:         dict,
+    current_user: User = Depends(get_current_user),
+    db:           AsyncSession = Depends(get_db),
+):
+    new_username = body.get("username", "").strip()
+    avatar_color = body.get("avatar_color", "")
+
+    # Validate username
+    if not new_username:
+        raise HTTPException(status_code=400, detail="Username cannot be empty.")
+    if len(new_username) < 2:
+        raise HTTPException(status_code=400, detail="Username must be at least 2 characters.")
+    if len(new_username) > 50:
+        raise HTTPException(status_code=400, detail="Username too long. Maximum 50 characters.")
+
+    import re as _re
+    if not _re.match(r'^[a-zA-Z0-9._\-]+$', new_username):
+        raise HTTPException(status_code=400, detail="Username can only contain letters, numbers, dots, hyphens and underscores. No spaces allowed.")
+
+    # Update user
+    current_user.username = new_username
+    # avatar_color stored in localStorage only — User model may not have this column
+    await db.commit()
+    await db.refresh(current_user)
+
+    return {
+        "message":  "Profile updated successfully.",
+        "username": current_user.username,
+        "email":    current_user.email,
+    }
+
 
 # ──────────────────────────────────────────────────────────
 #  CHANGE PASSWORD (while logged in)
