@@ -3,7 +3,13 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Settings — Smart Media Fetcher</title>
+<title>Settings — Smart Media Fetcher | Free Video Downloader</title>
+<meta name="description" content="Manage your Smart Media Fetcher account settings. Free online media downloader for Instagram Reels, YouTube videos and more."/>
+<meta name="robots" content="noindex"/>
+<meta property="og:title" content="Settings — Smart Media Fetcher | Free Video Downloader"/>
+<meta property="og:description" content="Manage your Smart Media Fetcher account settings. Free online media downloader for Instagram Reels, YouTube videos and more."/>
+<meta property="og:url" content="https://smart-media-fetcher.onrender.com/"/>
+<meta name="theme-color" content="#fbbf24"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
 <style>
@@ -82,10 +88,25 @@ body{background:var(--bg);color:var(--text);font-family:'Cabinet Grotesk',sans-s
 .sec-badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:100px;}
 .sec-badge.ok{background:rgba(52,211,153,0.15);color:var(--green);}
 .sec-badge.warn{background:rgba(251,191,36,0.15);color:var(--amber);}
-.danger-section{background:rgba(248,113,113,0.05);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius);padding:24px;margin-bottom:16px;}
-.danger-title{font-size:16px;font-weight:800;color:var(--red);}
-.danger-btn{width:100%;padding:13px;border-radius:12px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);color:var(--red);font-size:14px;font-weight:700;cursor:pointer;font-family:'Cabinet Grotesk',sans-serif;transition:all 0.2s;margin-top:8px;}
-.danger-btn:hover{background:rgba(248,113,113,0.2);}
+.danger-section{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:16px;}
+.danger-title{font-size:16px;font-weight:800;color:var(--text);}
+.danger-btn{width:100%;padding:13px;border-radius:12px;background:var(--surface);border:1px solid var(--border);color:var(--text-2);font-size:14px;font-weight:700;cursor:pointer;font-family:'Cabinet Grotesk',sans-serif;transition:all 0.3s;margin-top:8px;text-align:left;display:flex;align-items:center;gap:10px;}
+.danger-btn:hover{background:rgba(248,113,113,0.08);border-color:rgba(248,113,113,0.4);color:var(--red);}
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;opacity:0;visibility:hidden;transition:all 0.2s;}
+.confirm-overlay.show{opacity:1;visibility:visible;}
+.confirm-modal{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:32px 28px;max-width:400px;width:90%;text-align:center;transform:scale(0.95);transition:transform 0.2s;}
+.confirm-overlay.show .confirm-modal{transform:scale(1);}
+.confirm-icon-wrap{width:64px;height:64px;border-radius:20px;margin:0 auto 18px;display:grid;place-items:center;font-size:28px;}
+.confirm-icon-wrap.warn{background:rgba(251,191,36,0.12);}
+.confirm-icon-wrap.danger{background:rgba(248,113,113,0.1);}
+.confirm-title{font-size:19px;font-weight:900;margin-bottom:8px;letter-spacing:-0.3px;}
+.confirm-sub{font-size:13px;color:var(--text-2);line-height:1.7;margin-bottom:8px;}
+.confirm-note{font-size:11px;color:var(--text-3);margin-bottom:24px;padding:8px 12px;background:var(--surface);border-radius:8px;border:1px solid var(--border);}
+.confirm-btns{display:flex;gap:10px;}
+.confirm-cancel{flex:1;padding:13px;border-radius:12px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:14px;font-weight:700;cursor:pointer;font-family:'Cabinet Grotesk',sans-serif;transition:all 0.2s;}
+.confirm-cancel:hover{border-color:var(--amber);color:var(--amber);}
+.confirm-ok{flex:1;padding:13px;border-radius:12px;background:var(--surface);border:1px solid var(--border);color:var(--text-2);font-size:14px;font-weight:700;cursor:pointer;font-family:'Cabinet Grotesk',sans-serif;transition:all 0.3s;}
+.confirm-ok:hover{background:rgba(248,113,113,0.12);border-color:rgba(248,113,113,0.4);color:var(--red);}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 24px;font-size:14px;font-weight:600;box-shadow:0 8px 32px rgba(0,0,0,0.3);transition:transform 0.3s;z-index:9999;}
 .toast.show{transform:translateX(-50%) translateY(0);}
 .toast.success{border-color:rgba(52,211,153,0.4);color:var(--green);}
@@ -182,9 +203,38 @@ function changeTheme(val){isDark=val==='dark';applyTheme();}
 async function saveProfile(){
   const username=document.getElementById('usernameInput').value.trim();
   if(!username){showToast('Username cannot be empty','error');return;}
-  const user=getUser();user.username=username;user.avatarColor=selectedColor;
-  localStorage.setItem('smf_user',JSON.stringify(user));
-  showToast('Profile saved!');
+  if(username.length<2){showToast('Username must be at least 2 characters','error');return;}
+
+  const btn=document.querySelector('[onclick="saveProfile()"]');
+  if(btn){btn.textContent='⏳ Saving...';btn.disabled=true;}
+
+  try{
+    // Call backend to update username
+    const res=await fetch(`${API}/auth/update-profile`,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json',Authorization:'Bearer '+getToken()},
+      body:JSON.stringify({username:username,avatar_color:selectedColor})
+    });
+    const data=await res.json();
+    if(!res.ok)throw new Error(data.detail||'Update failed.');
+
+    // Update localStorage with new data
+    const user=getUser();
+    user.username=username;
+    user.avatarColor=selectedColor;
+    localStorage.setItem('smf_user',JSON.stringify(user));
+
+    showToast('✅ Profile updated successfully!');
+
+    // Update preview
+    const namePreview=document.getElementById('namePreview');
+    if(namePreview)namePreview.textContent=username;
+
+  }catch(e){
+    showToast(e.message,'error');
+  }finally{
+    if(btn){btn.textContent='Save Profile';btn.disabled=false;}
+  }
 }
 
 async function changePassword(){
@@ -233,23 +283,65 @@ function savePrefs(){
 
 function saveAppearance(){localStorage.setItem('smf_prefs',JSON.stringify(prefs));showToast('Appearance saved!');}
 
-function clearHistory(){
-  if(!confirm('Clear all download history?'))return;
-  const user=getUser();
-  const key='smf_history_'+(user.username||user.email||'user').replace(/[^a-z0-9]/gi,'_');
-  localStorage.setItem(key,'[]');
-  showToast('History cleared!');
+let _confirmAction = null;
+
+function confirmClearHistory() {
+  _confirmAction = 'clear';
+  const wrap = document.getElementById('confirmIconWrap');
+  if (wrap) { wrap.className = 'confirm-icon-wrap warn'; }
+  document.getElementById('confirmIcon').textContent  = '🗑️';
+  document.getElementById('confirmTitle').textContent = 'Clear download history?';
+  document.getElementById('confirmSub').textContent   = 'All your saved download records will be removed from this device.';
+  document.getElementById('confirmNote').textContent  = '⚠️ This action cannot be undone.';
+  document.getElementById('confirmOkBtn').textContent = 'Yes, clear history';
+  document.getElementById('confirmOverlay').classList.add('show');
 }
 
-async function deleteAccount(){
-  const confirmed=prompt('Type DELETE to confirm:');
-  if(confirmed!=='DELETE'){showToast('Cancelled','error');return;}
-  try{
-    const res=await fetch(`${API}/auth/delete-account`,{method:'DELETE',headers:{Authorization:`Bearer ${getToken()}`}});
-    if(!res.ok)throw new Error('Failed');
-    localStorage.clear();alert('Account deleted.');window.location.href='/';
-  }catch(e){showToast('Could not delete account','error');}
+function confirmDeleteAccount() {
+  _confirmAction = 'delete';
+  const wrap = document.getElementById('confirmIconWrap');
+  if (wrap) { wrap.className = 'confirm-icon-wrap danger'; }
+  document.getElementById('confirmIcon').textContent  = '👤';
+  document.getElementById('confirmTitle').textContent = 'Delete your account?';
+  document.getElementById('confirmSub').innerHTML     = 'Your account, login details, and all associated data will be permanently removed.';
+  document.getElementById('confirmNote').innerHTML    = '⚠️ This cannot be reversed. You will need to create a new account to use this service again.';
+  document.getElementById('confirmOkBtn').textContent = 'Yes, delete my account';
+  document.getElementById('confirmOverlay').classList.add('show');
 }
+
+function closeConfirm() {
+  document.getElementById('confirmOverlay').classList.remove('show');
+  _confirmAction = null;
+}
+
+async function executeConfirm() {
+  closeConfirm();
+  if (_confirmAction === 'clear') {
+    const user = getUser();
+    const key  = 'smf_history_' + (user.username || user.email || 'user').replace(/[^a-z0-9]/gi, '_');
+    localStorage.setItem(key, '[]');
+    showToast('Download history cleared!');
+  } else if (_confirmAction === 'delete') {
+    try {
+      const res = await fetch(`${API}/auth/delete-account`, {
+        method:  'DELETE',
+        headers: { Authorization: 'Bearer ' + getToken() },
+      });
+      if (!res.ok) throw new Error('Failed');
+      localStorage.clear();
+      showToast('Account deleted. Redirecting...');
+      setTimeout(() => window.location.href = '/', 1500);
+    } catch(e) {
+      showToast('Could not delete account. Please try again.', 'error');
+    }
+  }
+}
+
+// Close confirm dialog when clicking overlay background
+document.addEventListener('click', e => {
+  const overlay = document.getElementById('confirmOverlay');
+  if (overlay && e.target === overlay) closeConfirm();
+});
 
 function renderPage(){
   const token=getToken();
@@ -266,7 +358,7 @@ function renderPage(){
       <button class="tab-btn" data-tab="security" onclick="switchTab('security')">🔒 Security</button>
       <button class="tab-btn" data-tab="prefs" onclick="switchTab('prefs')">⬇️ Prefs</button>
       <button class="tab-btn" data-tab="appearance" onclick="switchTab('appearance')">🎨 Appearance</button>
-      <button class="tab-btn" data-tab="danger" onclick="switchTab('danger')">☠️ Danger</button>
+      <button class="tab-btn" data-tab="danger" onclick="switchTab('danger')">🛠️ Manage</button>
     </div>
     <div class="tab-content active" id="tab-profile">
       <div class="section">
@@ -358,10 +450,43 @@ function renderPage(){
     </div>
     <div class="tab-content" id="tab-danger">
       <div class="danger-section">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px"><span style="font-size:24px">⚠️</span><div class="danger-title">Danger Zone</div></div>
-        <p style="font-size:13px;color:var(--text-2);margin-bottom:8px">These actions are permanent and cannot be undone.</p>
-        <button class="danger-btn" onclick="clearHistory()">🗑️ Clear all download history</button>
-        <button class="danger-btn" onclick="deleteAccount()">💀 Delete my account permanently</button>
+        <div class="section-head"><div class="section-icon">⚠️</div><div><div class="danger-title">Account Management</div><div class="section-sub">Manage your account data and settings.</div></div></div>
+
+        <!-- Clear History -->
+        <div style="padding:14px 0;border-bottom:1px solid var(--border);">
+          <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Clear download history</div>
+          <div style="font-size:12px;color:var(--text-2);margin-bottom:12px;">Remove all your saved download history. This cannot be undone.</div>
+          <button class="danger-btn" onclick="confirmClearHistory()">
+            <span style="font-size:16px">🗑️</span>
+            <span>Clear all download history</span>
+          </button>
+        </div>
+
+        <!-- Delete Account -->
+        <div style="padding:14px 0;">
+          <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Delete account</div>
+          <div style="font-size:12px;color:var(--text-2);margin-bottom:12px;">Permanently delete your account and all data. This action cannot be reversed.</div>
+          <button class="danger-btn" onclick="confirmDeleteAccount()">
+            <span style="font-size:16px">👤</span>
+            <span>Delete my account permanently</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Professional Confirmation Dialog -->
+    <div class="confirm-overlay" id="confirmOverlay">
+      <div class="confirm-modal">
+        <div class="confirm-icon-wrap warn" id="confirmIconWrap">
+          <span id="confirmIcon">🗑️</span>
+        </div>
+        <div class="confirm-title" id="confirmTitle">Clear download history?</div>
+        <div class="confirm-sub" id="confirmSub">Are you sure you want to clear all your download history?</div>
+        <div class="confirm-note" id="confirmNote">⚠️ This action cannot be undone.</div>
+        <div class="confirm-btns">
+          <button class="confirm-cancel" onclick="closeConfirm()">No, keep it</button>
+          <button class="confirm-ok" id="confirmOkBtn" onclick="executeConfirm()">Yes, proceed</button>
+        </div>
       </div>
     </div>`;
 }
