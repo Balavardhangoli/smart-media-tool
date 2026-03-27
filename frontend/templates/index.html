@@ -426,7 +426,7 @@
             <div id="previewAvatar" style="width:56px;height:56px;border-radius:14px;background:#fbbf24;display:grid;place-items:center;font-size:22px;font-weight:800;color:#0c0c0f;">B</div>
             <div>
               <div style="font-size:14px;font-weight:700;" id="previewName">Balavardhan</div>
-              <div style="font-size:12px;color:var(--text-2);" id="previewEmail">user@email.com</div>
+              <div style="font-size:12px;color:var(--text-2);" id="previewEmail"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="6c191f091e2c09010d0500420f0301">[email&#160;protected]</a></div>
             </div>
           </div>
           <div class="avatar-grid" id="avatarColors">
@@ -947,7 +947,7 @@
 
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 const API = '/api/v1';
 let authToken    = localStorage.getItem('smf_token') || null;
 let isBulkMode   = false;
@@ -1211,8 +1211,21 @@ function renderResult(data, sourceUrl) {
     const opt = data.options[0];
     const btn = document.createElement('button');
     btn.className = 'action-btn primary';
-    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download ${opt.format?.toUpperCase() || opt.media_type}`;
-    btn.onclick = () => streamDownload(opt.url, opt.label);
+    const dlIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+    btn.innerHTML = `${dlIcon} Download ${opt.format?.toUpperCase() || opt.media_type}`;
+    btn.onclick = async function() {
+      if (btn.disabled) return;
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner"></span> Downloading...`;
+      try {
+        await streamDownload(opt.url, opt.label);
+      } finally {
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.innerHTML = `${dlIcon} Download ${opt.format?.toUpperCase() || opt.media_type}`;
+        }, 3000);
+      }
+    };
     resultActions.appendChild(btn);
   }
 
@@ -1383,7 +1396,6 @@ function renderBulkResults(data) {
 
 async function streamDownload(url, label) {
   try {
-
     const res = await fetch(`${API}/download/fetch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
@@ -1398,10 +1410,62 @@ async function streamDownload(url, label) {
     a.click();
     document.body.removeChild(a);
     showStatus('success', `✅ Download started: <strong>${label}</strong>`);
-  } catch {
 
+    // After successful download — show "Download Another" button and auto-reset after 5s
+    setTimeout(() => {
+      showDownloadAnotherPrompt();
+    }, 1500);
+
+  } catch {
     window.open(url, '_blank');
+    setTimeout(() => showDownloadAnotherPrompt(), 2000);
   }
+}
+
+function showDownloadAnotherPrompt() {
+  // Clear URL input
+  const urlInput = document.getElementById('urlInput');
+  if (urlInput) {
+    urlInput.value = '';
+    urlInput.dispatchEvent(new Event('input'));
+  }
+  // Clear detect bar
+  const detectBar = document.getElementById('detectBar');
+  if (detectBar) detectBar.classList.remove('show');
+
+  // Show a clean "ready for next" state on result card
+  const resultCard = document.getElementById('resultCard');
+  if (resultCard && resultCard.classList.contains('show')) {
+    const body = resultCard.querySelector('.result-body');
+    if (body) {
+      body.innerHTML = `
+        <div style="text-align:center;padding:20px 0;">
+          <div style="font-size:40px;margin-bottom:12px;">✅</div>
+          <div style="font-size:16px;font-weight:700;color:var(--green);margin-bottom:8px;">Download started!</div>
+          <div style="font-size:13px;color:var(--text-2);margin-bottom:20px;">Your file is being downloaded. Paste another URL to download more.</div>
+          <button onclick="resetForNextDownload()" style="padding:10px 24px;border-radius:10px;background:var(--amber);border:none;color:#0c0c0f;font-size:14px;font-weight:700;cursor:pointer;font-family:'Cabinet Grotesk',sans-serif;">
+            ↓ Download Another
+          </button>
+        </div>`;
+    }
+  }
+}
+
+function resetForNextDownload() {
+  // Full reset — clear everything
+  const urlInput = document.getElementById('urlInput');
+  if (urlInput) { urlInput.value = ''; urlInput.focus(); }
+  const clearBtn = document.getElementById('clearBtn');
+  if (clearBtn) clearBtn.classList.remove('show');
+  const detectBar = document.getElementById('detectBar');
+  if (detectBar) detectBar.classList.remove('show');
+  const progressWrap = document.getElementById('progressWrap');
+  if (progressWrap) progressWrap.classList.remove('show');
+  const statusMsg = document.getElementById('statusMsg');
+  if (statusMsg) statusMsg.className = 'status-msg';
+  const resultCard = document.getElementById('resultCard');
+  if (resultCard) resultCard.classList.remove('show');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function addToHistory(url, platform, title, media_type, file_size) {
@@ -1644,9 +1708,9 @@ document.getElementById('registerSubmit').addEventListener('click', async () => 
   if (username.length > 50) {
     alert('❌ Username too long. Maximum 50 characters.'); return;
   }
-  // Allow letters, numbers, spaces, dots, hyphens, underscores
-  if (!/^[a-zA-Z0-9 ._\-]+$/.test(username)) {
-    alert('❌ Username can only contain letters, numbers, spaces, dots, hyphens and underscores.'); return;
+  // Allow letters, numbers, dots, hyphens, underscores — NO spaces
+  if (!/^[a-zA-Z0-9._\-]+$/.test(username)) {
+    alert('❌ Username can only contain letters, numbers, dots (.), hyphens (-) and underscores (_).\n\nNo spaces allowed. Example: john_doe or john.doe'); return;
   }
   if (password.length < 8) {
     alert('❌ Password must be at least 8 characters.\n\nPlease use 8 or more characters.'); return;
@@ -2744,16 +2808,4 @@ function toggleFAQ(index) {
 
   document.querySelectorAll('.faq-item').forEach(el => el.classList.remove('open'));
 
-  if (!wasOpen) item.classList.add('open');
-}
-
-if (authToken) {
-  const savedUser = localStorage.getItem('smf_user');
-  const userData  = savedUser ? JSON.parse(savedUser) : null;
-  setLoggedInUI(userData);
-}
-renderHistory();
-renderFAQ();
-</script>
-</body>
-</html>
+  if (!wasOpen) item.classList.add('open
