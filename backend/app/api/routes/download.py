@@ -373,9 +373,11 @@ async def bulk_analyze(
             await asyncio.sleep(0.4)
 
     success_count = sum(1 for r in results if r["success"])
+    fail_count    = len(results) - success_count
 
     return BulkAnalyzeResponse(
         total=len(results),
         success_count=success_count,
+        fail_count=fail_count,
         results=results,
     )
