@@ -1678,8 +1678,17 @@ document.getElementById('loginSubmit').addEventListener('click', async () => {
     localStorage.setItem('smf_token', authToken);
     authModal.classList.remove('show');
 
-    const userData = { email: email, username: email.split('@')[0] };
-    setLoggedInUI(userData);
+    // Fetch real username from backend — not just email prefix
+    try {
+      const meRes  = await fetch(`${API}/auth/me`, {
+        headers: { Authorization: 'Bearer ' + authToken }
+      });
+      const meData = await meRes.json();
+      setLoggedInUI(meData);
+    } catch(e) {
+      // Fallback if /me fails
+      setLoggedInUI({ email: email, username: email.split('@')[0] });
+    }
     showStatus('success', '✅ Welcome back!');
   } catch (e) {
     alert('Login error: ' + e.message);
