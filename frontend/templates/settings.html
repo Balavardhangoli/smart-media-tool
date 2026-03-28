@@ -40,9 +40,9 @@ body{background:var(--bg);color:var(--text);font-family:'Cabinet Grotesk',sans-s
 .avatar-big{width:72px;height:72px;border-radius:18px;display:grid;place-items:center;font-size:28px;font-weight:900;color:#0c0c0f;flex-shrink:0;}
 .avatar-info h3{font-size:18px;font-weight:800;}
 .avatar-info p{font-size:13px;color:var(--text-2);margin-top:4px;}
-.color-picker{display:flex;gap:8px;margin-top:12px;}
-.color-dot{width:26px;height:26px;border-radius:8px;cursor:pointer;border:2px solid transparent;transition:all 0.2s;}
-.color-dot:hover,.color-dot.selected{border-color:white;transform:scale(1.1);}
+
+
+
 .field{margin-bottom:16px;}
 .field-label{font-size:12px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;display:block;}
 .field-input{width:100%;padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-family:'Cabinet Grotesk',sans-serif;outline:none;transition:border-color 0.2s;}
@@ -125,7 +125,7 @@ body{background:var(--bg);color:var(--text);font-family:'Cabinet Grotesk',sans-s
   .section{padding:16px;}
   .avatar-row{flex-direction:column;align-items:flex-start;gap:14px;}
   .avatar-big{width:60px;height:60px;font-size:24px;}
-  .color-picker{flex-wrap:wrap;}
+  
   .security-info{padding:12px;}
   .otp-inputs{gap:6px;}
   .otp-input{width:40px;height:46px;font-size:18px;}
@@ -154,8 +154,6 @@ body{background:var(--bg);color:var(--text);font-family:'Cabinet Grotesk',sans-s
 const API='/api/v1';
 let isDark=localStorage.getItem('smf_theme')!=='light';
 let prefs=JSON.parse(localStorage.getItem('smf_prefs')||'{}');
-let selectedColor=prefs.avatarColor||'#fbbf24';
-const COLORS=['#fbbf24','#38bdf8','#34d399','#a78bfa','#f87171','#fb923c','#ec4899'];
 const ACCENTS=['#fbbf24','#38bdf8','#34d399','#a78bfa','#f87171','#fb923c'];
 
 function applyTheme(){document.documentElement.setAttribute('data-theme',isDark?'dark':'light');document.getElementById('themeBtn').textContent=isDark?'🌙':'☀️';localStorage.setItem('smf_theme',isDark?'dark':'light');}
@@ -166,7 +164,6 @@ function showToast(msg,type='success'){const t=document.getElementById('toast');
 function getUser(){try{return JSON.parse(localStorage.getItem('smf_user')||'{}');}catch(e){return{};}}
 function getToken(){return localStorage.getItem('smf_token');}
 function switchTab(tab){document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));document.querySelectorAll('.tab-content').forEach(c=>c.classList.toggle('active',c.id==='tab-'+tab));}
-function pickColor(c){selectedColor=c;document.getElementById('avatarPreview').style.background=c;document.querySelectorAll('.color-dot').forEach(d=>d.classList.toggle('selected',d.getAttribute('data-color')===c));prefs.avatarColor=c;}
 function pickAccent(c,btn){prefs.accent=c;document.querySelectorAll('.accent-btn').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');}
 function togglePref(key,btn){btn.classList.toggle('on');prefs[key]=btn.classList.contains('on');}
 function togglePw(id,btn){const inp=document.getElementById(id);if(inp.type==='password'){inp.type='text';btn.textContent='🙈';}else{inp.type='password';btn.textContent='👁';}}
@@ -213,7 +210,7 @@ async function saveProfile(){
     const res=await fetch(`${API}/auth/update-profile`,{
       method:'PUT',
       headers:{'Content-Type':'application/json',Authorization:'Bearer '+getToken()},
-      body:JSON.stringify({username:username,avatar_color:selectedColor})
+      body:JSON.stringify({username:username})
     });
     const data=await res.json();
     if(!res.ok)throw new Error(data.detail||'Update failed.');
@@ -221,7 +218,6 @@ async function saveProfile(){
     // Update localStorage with new data
     const user=getUser();
     user.username=username;
-    user.avatarColor=selectedColor;
     localStorage.setItem('smf_user',JSON.stringify(user));
 
     showToast('✅ Profile updated successfully!');
@@ -364,10 +360,9 @@ function renderPage(){
       <div class="section">
         <div class="section-head"><div class="section-icon">👤</div><div><div class="section-title">Profile</div><div class="section-sub">Your public profile information</div></div></div>
         <div class="avatar-row">
-          <div class="avatar-big" id="avatarPreview" style="background:${selectedColor}">${initial}</div>
+          <div class="avatar-big" id="avatarPreview" style="background:var(--amber)">${initial}</div>
           <div class="avatar-info">
             <h3 id="namePreview">${username}</h3><p>${email}</p>
-            <div class="color-picker">${COLORS.map(c=>`<div class="color-dot ${c===selectedColor?'selected':''}" data-color="${c}" style="background:${c}" onclick="pickColor('${c}')"></div>`).join('')}</div>
           </div>
         </div>
         <div class="field-row">
