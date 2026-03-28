@@ -31,10 +31,45 @@ BROWSER_HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
 
-# ── RapidAPI Config ────────────────────────────────────────
-RAPIDAPI_KEY  = os.getenv("RAPIDAPI_KEY", "")
+# ── RapidAPI Multi-Key Rotation ───────────────────────────
+# Add multiple keys: RAPIDAPI_KEY, RAPIDAPI_KEY_2, RAPIDAPI_KEY_3 etc.
+# When one key hits monthly limit, automatically switches to next key.
 RAPIDAPI_HOST = os.getenv("RAPIDAPI_HOST", "snap-video3.p.rapidapi.com")
 RAPIDAPI_URL  = f"https://{RAPIDAPI_HOST}/download"
+
+def _load_api_keys() -> list:
+    """Load all available RapidAPI keys from environment variables."""
+    keys = []
+    # Primary key
+    k1 = os.getenv("RAPIDAPI_KEY", "").strip()
+    if k1: keys.append(k1)
+    # Additional keys: RAPIDAPI_KEY_2, RAPIDAPI_KEY_3 ... RAPIDAPI_KEY_10
+    for i in range(2, 11):
+        k = os.getenv(f"RAPIDAPI_KEY_{i}", "").strip()
+        if k: keys.append(k)
+    return keys
+
+# Load all keys at startup
+_API_KEYS = _load_api_keys()
+_current_key_index = 0  # tracks which key is active
+
+def _get_active_key() -> str:
+    """Get the currently active API key."""
+    if not _API_KEYS:
+        return ""
+    return _API_KEYS[_current_key_index % len(_API_KEYS)]
+
+def _rotate_to_next_key() -> bool:
+    """Switch to next available key. Returns True if rotated, False if no more keys."""
+    global _current_key_index
+    if len(_API_KEYS) <= 1:
+        return False  # only one key, can't rotate
+    _current_key_index = (_current_key_index + 1) % len(_API_KEYS)
+    logger.warning(f"api_key_rotated: now using key index {_current_key_index}")
+    return True
+
+# Backwards compat
+RAPIDAPI_KEY = _get_active_key()
 
 
 @dataclass
@@ -75,48 +110,99 @@ def _make_client() -> httpx.AsyncClient:
 #  RAPIDAPI SNAP VIDEO HELPER
 # ══════════════════════════════════════════════════════════
 async def _rapidapi_download(url: str) -> DownloadResult:
-    """Use RapidAPI Snap Video to download from YouTube, Instagram, TikTok etc."""
-    if not RAPIDAPI_KEY:
+    """Use RapidAPI Snap Video with automatic key rotation on quota exceeded."""
+    if not _API_KEYS:
         return DownloadResult(
             success=False,
             error="API key not configured. Please add RAPIDAPI_KEY to environment.",
         )
 
-    headers = {
-        "x-rapidapi-host": RAPIDAPI_HOST,
-        "x-rapidapi-key": RAPIDAPI_KEY,
-    }
+    # Try each available key until one works
+    keys_tried = 0
+    max_tries  = len(_API_KEYS)
 
-    # Clean URL - remove extra spaces and trailing slashes
-    clean_url = url.strip().rstrip("/")
+    while keys_tried < max_tries:
+        active_key = _get_active_key()
+        headers = {
+            "x-rapidapi-host": RAPIDAPI_HOST,
+            "x-rapidapi-key":  active_key,
+        }
 
-    try:
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(30),
-            follow_redirects=True,
-        ) as client:
-            resp = await client.post(
-                RAPIDAPI_URL,
-                data={"url": clean_url},
-                headers=headers,
+        # Clean URL
+        clean_url = url.strip().rstrip("/")
+
+        try:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(30),
+                follow_redirects=True,
+            ) as client:
+                resp = await client.post(
+                    RAPIDAPI_URL,
+                    data={"url": clean_url},
+                    headers=headers,
+                )
+                data = resp.json()
+                logger.info(f"rapidapi_response: {data}")
+        except Exception as e:
+            return DownloadResult(success=False, error=f"API request failed: {str(e)}")
+
+        # Handle 429 — quota exceeded → try next key automatically
+        if resp.status_code == 429:
+            msg = data.get("message", "")
+            is_quota = "MONTHLY" in msg or "quota" in msg.lower() or "exceeded" in msg.lower()
+            if is_quota:
+                logger.warning(f"api_key_quota_exceeded: key index {_current_key_index}")
+                rotated = _rotate_to_next_key()
+                if rotated:
+                    keys_tried += 1
+                    logger.info(f"rotated_to_key_index: {_current_key_index} — retrying")
+                    continue  # retry with new key
+                # No more keys available
+                return DownloadResult(
+                    success=False,
+                    error="Monthly download limit reached on all API keys. Please add a new API key or wait until next month.",
+                )
+            return DownloadResult(
+                success=False,
+                error="Too many requests. Please wait a moment and try again.",
             )
-            data = resp.json()
-            logger.info(f"rapidapi_response: {data}")
-    except Exception as e:
-        return DownloadResult(success=False, error=f"API request failed: {str(e)}")
 
-    if resp.status_code != 200:
+        if resp.status_code != 200:
+            return DownloadResult(
+                success=False,
+                error=f"Download service error (HTTP {resp.status_code})",
+            )
+
+        # Check if RapidAPI returned quota message in body (200 but with error message)
+        if data.get("message") and not data.get("medias"):
+            msg = str(data["message"])
+            if "quota" in msg.lower() or "exceeded" in msg.lower() or "plan" in msg.lower():
+                logger.warning(f"api_key_quota_in_body: key index {_current_key_index}")
+                rotated = _rotate_to_next_key()
+                if rotated:
+                    keys_tried += 1
+                    continue  # retry with new key
+                return DownloadResult(
+                    success=False,
+                    error="Monthly download limit reached on all API keys. Please add a new API key.",
+                )
+            return DownloadResult(success=False, error=msg)
+
+        # Check if RapidAPI returned an error field
+        if data.get("error"):
+            return DownloadResult(
+                success=False,
+                error=f"Could not extract media: {data['error']}",
+            )
+
+        # Success — break out of retry loop
+        break
+
+    else:
+        # All keys exhausted
         return DownloadResult(
             success=False,
-            error=f"Download service error (HTTP {resp.status_code})",
-        )
-
-    # Check if RapidAPI returned an error field
-    if data.get("error"):
-        api_error = str(data["error"])
-        return DownloadResult(
-            success=False,
-            error=f"Could not extract media: {api_error}",
+            error="All API keys have reached their monthly limit. Please add more keys.",
         )
 
     options = []
