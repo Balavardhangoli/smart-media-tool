@@ -1,5 +1,5 @@
 /* Smart Media Fetcher — Main Application JS */
-/* Generated from index.html */
+/* Generated from index.html code */
 
 'use strict';
 
