@@ -143,7 +143,7 @@ body{background:var(--bg);color:var(--text);font-family:'Cabinet Grotesk',sans-s
 <body>
 <div class="wrapper">
   <div class="page-header">
-    <a href="/" class="back-btn">← Back</a>
+    <a href="/" class="back-btn" onclick="event.preventDefault();window.location.href='/?from=settings'">← Back</a>
     <h1 class="page-title">⚙️ <span>Settings</span></h1>
     <button class="theme-btn" id="themeBtn">🌙</button>
   </div>
