@@ -274,7 +274,7 @@ function renderResult(data, sourceUrl) {
       btn.disabled = true;
       btn.innerHTML = `<span class="spinner"></span> Downloading...`;
       try {
-        await streamDownload(opt.url, opt.label);
+        await streamDownload(opt.url, opt.label, false); // single mode
       } finally {
         setTimeout(() => {
           btn.disabled = false;
@@ -349,7 +349,7 @@ function renderResult(data, sourceUrl) {
         dlBtn.innerHTML = `<span class="btn-spinner"></span> Downloading...`;
         dlBtn.style.opacity = '0.7';
         try {
-          await streamDownload(opt.url, opt.label);
+          await streamDownload(opt.url, opt.label, false); // single mode
         } finally {
           setTimeout(() => {
             dlBtn.disabled = false;
@@ -433,7 +433,7 @@ function renderBulkResults(data) {
           dlBtn.innerHTML = `<span class="btn-spinner"></span> Downloading...`;
           dlBtn.style.opacity = '0.7';
           try {
-            await streamDownload(bestOpt.url, bestOpt.label);
+            await streamDownload(bestOpt.url, bestOpt.label, true); // bulk=true → no reset
           } finally {
             setTimeout(() => {
               dlBtn.disabled = false;
@@ -447,10 +447,60 @@ function renderBulkResults(data) {
     optionsList.appendChild(item);
   });
 
+  // Add "Download All" button for bulk mode
+  if (data.results && data.results.length > 1) {
+    const successResults = data.results.filter(r => r.success && r.options && r.options.length > 0);
+    if (successResults.length > 1) {
+      const dlAllWrap = document.createElement('div');
+      dlAllWrap.style.cssText = 'padding:14px 0 4px;';
+      const dlAllBtn = document.createElement('button');
+      dlAllBtn.className = 'dl-btn';
+      dlAllBtn.style.cssText = 'width:100%;justify-content:center;margin-bottom:8px;';
+      dlAllBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download All (${successResults.length} videos)`;
+
+      let isDownloadingAll = false;
+      dlAllBtn.onclick = async function() {
+        if (isDownloadingAll) return;
+        isDownloadingAll = true;
+        dlAllBtn.disabled = true;
+
+        // Download one by one with 1s gap
+        for (let i = 0; i < successResults.length; i++) {
+          const r = successResults[i];
+          const selectedQuality = document.getElementById('qualitySelect').value;
+          let bestOpt = r.options[0];
+          if (selectedQuality === 'audio') {
+            const a = r.options.find(o => (o.label||'').toLowerCase().includes('mp3') || (o.label||'').toLowerCase().includes('kbps'));
+            if (a) bestOpt = a;
+          } else if (selectedQuality !== 'best') {
+            const q = r.options.find(o => (o.label||'').toLowerCase().includes(selectedQuality.replace('p','')));
+            if (q) bestOpt = q;
+          }
+          if (bestOpt) {
+            dlAllBtn.innerHTML = `<span class="btn-spinner"></span> Downloading ${i+1}/${successResults.length}...`;
+            await streamDownload(bestOpt.url, bestOpt.label, true);
+            if (i < successResults.length - 1) await new Promise(r => setTimeout(r, 1200));
+          }
+        }
+
+        dlAllBtn.innerHTML = `✅ All ${successResults.length} downloads started!`;
+        dlAllBtn.style.background = 'var(--green)';
+        setTimeout(() => {
+          dlAllBtn.disabled = false;
+          isDownloadingAll = false;
+          dlAllBtn.style.background = '';
+          dlAllBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download All (${successResults.length} videos)`;
+        }, 4000);
+      };
+      dlAllWrap.appendChild(dlAllBtn);
+      optionsList.insertBefore(dlAllWrap, optionsList.firstChild);
+    }
+  }
+
   resultCard.classList.add('show');
 }
 
-async function streamDownload(url, label) {
+async function streamDownload(url, label, isBulk = false) {
   try {
     const res = await fetch(`${API}/download/fetch`, {
       method: 'POST',
@@ -467,14 +517,17 @@ async function streamDownload(url, label) {
     document.body.removeChild(a);
     showStatus('success', `✅ Download started: <strong>${label}</strong>`);
 
-    // After successful download — show "Download Another" button and auto-reset after 5s
-    setTimeout(() => {
-      showDownloadAnotherPrompt();
-    }, 1500);
+    // Only show "Download Another" prompt in SINGLE mode
+    // In BULK mode: user can download all videos without reset
+    if (!isBulk && !isBulkMode) {
+      setTimeout(() => showDownloadAnotherPrompt(), 1500);
+    }
 
   } catch {
     window.open(url, '_blank');
-    setTimeout(() => showDownloadAnotherPrompt(), 2000);
+    if (!isBulk && !isBulkMode) {
+      setTimeout(() => showDownloadAnotherPrompt(), 2000);
+    }
   }
 }
 
