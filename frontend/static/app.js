@@ -153,10 +153,27 @@ toggleBulk.addEventListener('click', () => {
   toggleBulk.textContent = isBulkMode ? '✕ Single Mode' : '⊞ Bulk Mode';
   urlInput.style.display = isBulkMode ? 'none' : '';
   document.querySelector('.url-icon').style.display = isBulkMode ? 'none' : '';
+
+  // Clear everything when switching modes
+  bulkInput.value = '';
+  urlInput.value = '';
+  clearBtn.classList.remove('show');
+  detectBar.classList.remove('show');
+  resultCard.classList.remove('show');
+  progressWrap.classList.remove('show');
+  statusMsg.className = 'status-msg';
+  optionsList.innerHTML = '';
+  resultActions.innerHTML = '';
+  resultPreview.innerHTML = '';
+  resultTitle.textContent = '';
+  window._lastResultData = null;
+
   if (isBulkMode) {
-    showStatus('info', '📦 Bulk mode: Paste up to 20 URLs (one per line). All URLs processed simultaneously.');
+    bulkInput.focus();
+    showStatus('info', '📦 Bulk mode — paste up to 20 URLs, one per line.');
   } else {
-    showStatus('',''); statusMsg.classList.remove('show');
+    statusMsg.classList.remove('show');
+    setTimeout(() => urlInput.focus(), 50);
   }
 });
 
@@ -485,12 +502,9 @@ function renderBulkResults(data) {
 
         dlAllBtn.innerHTML = `✅ All ${successResults.length} downloads started!`;
         dlAllBtn.style.background = 'var(--green)';
-        setTimeout(() => {
-          dlAllBtn.disabled = false;
-          isDownloadingAll = false;
-          dlAllBtn.style.background = '';
-          dlAllBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download All (${successResults.length} videos)`;
-        }, 4000);
+
+        // Show professional Done state after 2 seconds
+        setTimeout(() => showBulkDoneState(successResults.length), 2000);
       };
       dlAllWrap.appendChild(dlAllBtn);
       optionsList.insertBefore(dlAllWrap, optionsList.firstChild);
@@ -498,6 +512,62 @@ function renderBulkResults(data) {
   }
 
   resultCard.classList.add('show');
+}
+
+function showBulkDoneState(count) {
+  const resultCard = document.getElementById('resultCard');
+  if (!resultCard) return;
+
+  resultCard.innerHTML = `
+    <div class="result-body" style="padding:32px 24px;text-align:center;">
+      <div style="font-size:52px;margin-bottom:16px;">🎉</div>
+      <div style="font-size:20px;font-weight:900;color:var(--green);margin-bottom:8px;">
+        All ${count} videos downloaded!
+      </div>
+      <div style="font-size:13px;color:var(--text-2);margin-bottom:28px;line-height:1.6;">
+        Your files are in your Downloads folder.<br/>Ready to download more?
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <button onclick="startNewBulk()" style="padding:12px 24px;border-radius:12px;background:var(--amber);border:none;color:#0c0c0f;font-size:14px;font-weight:700;cursor:pointer;font-family:'Cabinet Grotesk',sans-serif;">
+          📦 New Bulk Download
+        </button>
+        <button onclick="switchToSingleMode()" style="padding:12px 24px;border-radius:12px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:14px;font-weight:700;cursor:pointer;font-family:'Cabinet Grotesk',sans-serif;">
+          ↓ Single Download
+        </button>
+      </div>
+    </div>`;
+}
+
+function startNewBulk() {
+  // Clear everything and stay in bulk mode
+  bulkInput.value = '';
+  bulkInput.focus();
+  resultCard.classList.remove('show');
+  progressWrap.classList.remove('show');
+  statusMsg.className = 'status-msg';
+  window._lastResultData = null;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function switchToSingleMode() {
+  // Switch to single mode and reset
+  if (isBulkMode) {
+    isBulkMode = false;
+    bulkWrap.classList.remove('show');
+    toggleBulk.textContent = '⊞ Bulk Mode';
+    urlInput.style.display = '';
+    document.querySelector('.url-icon').style.display = '';
+    bulkInput.value = '';
+  }
+  resultCard.classList.remove('show');
+  progressWrap.classList.remove('show');
+  statusMsg.className = 'status-msg';
+  urlInput.value = '';
+  clearBtn.classList.remove('show');
+  detectBar.classList.remove('show');
+  window._lastResultData = null;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  setTimeout(() => urlInput.focus(), 100);
 }
 
 async function streamDownload(url, label, isBulk = false) {
