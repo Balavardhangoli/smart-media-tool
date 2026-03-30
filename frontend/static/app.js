@@ -264,12 +264,15 @@ async function triggerBulk() {
 }
 
 function renderResult(data, sourceUrl) {
-  // Always remove bulk done overlay before showing new result
-  hideBulkDoneOverlay();
-
-  // Always reset result card to clean state
+  // Reset result card to fully clean state before rendering
   resultCard.classList.remove('show');
   resultCard.style.position = '';
+  optionsList.innerHTML   = '';
+  resultActions.innerHTML = '';
+  resultPreview.innerHTML = '';
+  resultTitle.textContent = '';
+  resultMeta.innerHTML    = '';
+  hideBulkDoneOverlay(); // safety — remove any lingering overlay
   resultTitle.textContent = data.title || sourceUrl;
 
   const tags = [];
@@ -523,49 +526,40 @@ function renderBulkResults(data) {
 }
 
 function showBulkDoneState(count) {
-  // Remove any existing done overlay first
-  const existing = document.getElementById('bulkDoneOverlay');
-  if (existing) existing.remove();
+  // Hide the result card completely — no overlay, no DOM tricks
+  resultCard.classList.remove('show');
 
-  // Create overlay ON TOP of result card — never replace innerHTML
-  // This preserves resultTitle, resultPreview, optionsList etc for future single downloads
-  const overlay = document.createElement('div');
-  overlay.id = 'bulkDoneOverlay';
-  overlay.style.cssText = [
-    'position:absolute', 'inset:0', 'z-index:10',
-    'background:var(--card)', 'border-radius:inherit',
-    'display:flex', 'align-items:center', 'justify-content:center',
-    'flex-direction:column', 'text-align:center', 'padding:32px 24px',
-  ].join(';');
+  // Clear all result card content so next single fetch starts fresh
+  optionsList.innerHTML   = '';
+  resultActions.innerHTML = '';
+  resultPreview.innerHTML = '';
+  resultTitle.textContent = '';
+  resultMeta.innerHTML    = '';
+  resultCard.style.position = '';
+  window._lastResultData  = null;
+  window._lastSourceUrl   = null;
 
-  overlay.innerHTML = `
-    <div style="font-size:52px;margin-bottom:16px;">🎉</div>
-    <div style="font-size:20px;font-weight:900;color:var(--green);margin-bottom:8px;">
-      All ${count} video${count !== 1 ? 's' : ''} downloaded!
-    </div>
-    <div style="font-size:13px;color:var(--text-2);margin-bottom:28px;line-height:1.6;">
-      Your files are in your Downloads folder.<br/>Ready to download more?
-    </div>
-    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-      <button onclick="startNewBulk()" style="padding:12px 24px;border-radius:12px;background:var(--amber);border:none;color:#0c0c0f;font-size:14px;font-weight:700;cursor:pointer;font-family:'Cabinet Grotesk',sans-serif;">
-        📦 New Bulk Download
-      </button>
-      <button onclick="switchToSingleMode()" style="padding:12px 24px;border-radius:12px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:14px;font-weight:700;cursor:pointer;font-family:'Cabinet Grotesk',sans-serif;">
-        ↓ Single Download
-      </button>
+  // Show done state in the status bar — simple, clean, no DOM conflicts
+  statusMsg.className = 'status-msg show success';
+  statusMsg.innerHTML = `
+    <div style="width:100%">
+      <div style="font-size:22px;margin-bottom:6px;">🎉 All ${count} video${count !== 1 ? 's' : ''} downloaded!</div>
+      <div style="font-size:12px;color:var(--text-2);margin-bottom:16px;">Your files are in your Downloads folder. Ready for more?</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button onclick="startNewBulk()" style="padding:10px 20px;border-radius:10px;background:var(--amber);border:none;color:#0c0c0f;font-size:13px;font-weight:700;cursor:pointer;font-family:'Cabinet Grotesk',sans-serif;">
+          📦 New Bulk Download
+        </button>
+        <button onclick="switchToSingleMode()" style="padding:10px 20px;border-radius:10px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;font-family:'Cabinet Grotesk',sans-serif;">
+          ↓ Single Download
+        </button>
+      </div>
     </div>`;
-
-  // resultCard needs position:relative for overlay to work
-  if (resultCard) {
-    resultCard.style.position = 'relative';
-    resultCard.appendChild(overlay);
-  }
 }
 
 function hideBulkDoneOverlay() {
-  const overlay = document.getElementById('bulkDoneOverlay');
-  if (overlay) overlay.remove();
-  if (resultCard) resultCard.style.position = '';
+  // No-op — kept for backwards compatibility with any existing calls
+  // Done state is now in statusMsg, not an overlay
+  resultCard.style.position = '';
 }
 
 function startNewBulk() {
@@ -593,19 +587,21 @@ function switchToSingleMode() {
     document.querySelector('.url-icon').style.display = '';
     bulkInput.value = '';
   }
-  // Fully reset result card — remove show class AND clear all children
+  // Clear result card completely
   resultCard.classList.remove('show');
   resultCard.style.position = '';
-  progressWrap.classList.remove('show');
-  statusMsg.className = 'status-msg';
-  urlInput.value = '';
-  clearBtn.classList.remove('show');
-  detectBar.classList.remove('show');
-  optionsList.innerHTML = '';
+  optionsList.innerHTML   = '';
   resultActions.innerHTML = '';
   resultPreview.innerHTML = '';
   resultTitle.textContent = '';
-  resultMeta.innerHTML = '';
+  resultMeta.innerHTML    = '';
+  // Clear all status / progress
+  progressWrap.classList.remove('show');
+  statusMsg.className = 'status-msg'; // hides done state
+  statusMsg.innerHTML = '';
+  urlInput.value = '';
+  clearBtn.classList.remove('show');
+  detectBar.classList.remove('show');
   window._lastResultData = null;
   window._lastSourceUrl  = null;
   window.scrollTo({ top: 0, behavior: 'smooth' });
