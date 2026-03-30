@@ -2071,7 +2071,7 @@ renderFAQ();
 
 // ══════════════════════════════════════════════════════════
 //  SESSION RESTORE — runs on every page load
-//  When user returns from /settings or /downloads, restore their session
+//  When user returns from /settings or /downloads, restore their sessions
 // ══════════════════════════════════════════════════════════
 (async function restoreSession() {
   const token = localStorage.getItem('smf_token');
