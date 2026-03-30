@@ -39,13 +39,31 @@ const progressFill = document.getElementById('progressFill');
 const progressSub  = document.getElementById('progressSub');
 const statusMsg    = document.getElementById('statusMsg');
 const resultCard   = document.getElementById('resultCard');
-const resultPreview= document.getElementById('resultPreview');
-const resultTitle  = document.getElementById('resultTitle');
-const resultMeta   = document.getElementById('resultMeta');
-const resultActions= document.getElementById('resultActions');
-const optionsList  = document.getElementById('optionsList');
 const historySection=document.getElementById('historySection');
 const historyList  = document.getElementById('historyList');
+
+// ── FIX 1: Helper to always get fresh DOM refs (safe after restoreResultCard) ──
+function getResultRefs() {
+  return {
+    resultPreview : document.getElementById('resultPreview'),
+    resultTitle   : document.getElementById('resultTitle'),
+    resultMeta    : document.getElementById('resultMeta'),
+    resultActions : document.getElementById('resultActions'),
+    optionsList   : document.getElementById('optionsList'),
+  };
+}
+
+// ── FIX 2: Restore resultCard to its original HTML structure ──
+function restoreResultCard() {
+  resultCard.innerHTML = `
+    <div class="result-preview-wrap" id="resultPreview"></div>
+    <div class="result-body">
+      <div class="result-title"   id="resultTitle"></div>
+      <div class="result-meta"    id="resultMeta"></div>
+      <div class="result-actions" id="resultActions"></div>
+      <div class="options-list"   id="optionsList"></div>
+    </div>`;
+}
 
 const PLATFORM_MAP = [
   { re:/youtube\.com|youtu\.be/, name:'YouTube', icon:'▶️', note:'Video / Short' },
@@ -162,11 +180,10 @@ toggleBulk.addEventListener('click', () => {
   resultCard.classList.remove('show');
   progressWrap.classList.remove('show');
   statusMsg.className = 'status-msg';
-  optionsList.innerHTML = '';
-  resultActions.innerHTML = '';
-  resultPreview.innerHTML = '';
-  resultTitle.textContent = '';
   window._lastResultData = null;
+
+  // Restore card structure when toggling modes
+  restoreResultCard();
 
   if (isBulkMode) {
     bulkInput.focus();
@@ -262,24 +279,28 @@ async function triggerBulk() {
 }
 
 function renderResult(data, sourceUrl) {
-  resultTitle.textContent = data.title || sourceUrl;
+  // Safety guard — restore structure if destroyed by showBulkDoneState
+  if (!document.getElementById('resultTitle')) restoreResultCard();
+  const refs = getResultRefs();
+
+  refs.resultTitle.textContent = data.title || sourceUrl;
 
   const tags = [];
   if (data.platform) tags.push(`<span class="meta-tag">${data.platform}</span>`);
   if (data.media_type) tags.push(`<span class="meta-tag">${data.media_type}</span>`);
-  resultMeta.innerHTML = tags.join('');
+  refs.resultMeta.innerHTML = tags.join('');
 
-  resultPreview.innerHTML = '';
+  refs.resultPreview.innerHTML = '';
   if (data.thumbnail) {
     const img = document.createElement('img');
     img.className = 'result-preview';
     img.src = data.thumbnail;
     img.alt = data.title || 'Preview';
     img.onerror = () => img.remove();
-    resultPreview.appendChild(img);
+    refs.resultPreview.appendChild(img);
   }
 
-  resultActions.innerHTML = '';
+  refs.resultActions.innerHTML = '';
   if (data.options.length === 1) {
     const opt = data.options[0];
     const btn = document.createElement('button');
@@ -299,16 +320,16 @@ function renderResult(data, sourceUrl) {
         }, 3000);
       }
     };
-    resultActions.appendChild(btn);
+    refs.resultActions.appendChild(btn);
   }
 
   const openBtn = document.createElement('button');
   openBtn.className = 'action-btn';
   openBtn.innerHTML = '🔗 Open Source';
   openBtn.onclick = () => window.open(sourceUrl, '_blank');
-  resultActions.appendChild(openBtn);
+  refs.resultActions.appendChild(openBtn);
 
-  optionsList.innerHTML = '';
+  refs.optionsList.innerHTML = '';
   if (data.options.length > 1) {
 
     // Get selected quality from dropdown
@@ -375,7 +396,7 @@ function renderResult(data, sourceUrl) {
           }, 3000);
         }
       };
-      optionsList.appendChild(item);
+      refs.optionsList.appendChild(item);
     });
   }
 
@@ -387,11 +408,15 @@ function renderResult(data, sourceUrl) {
 }
 
 function renderBulkResults(data) {
-  resultPreview.innerHTML = '';
-  resultTitle.textContent = `Bulk Results — ${data.success_count}/${data.total} succeeded`;
-  resultMeta.innerHTML = `<span class="meta-tag">Bulk</span><span class="meta-tag">${data.total} URLs</span>`;
-  resultActions.innerHTML = '';
-  optionsList.innerHTML = '';
+  // Safety guard — restore structure if needed
+  if (!document.getElementById('resultTitle')) restoreResultCard();
+  const refs = getResultRefs();
+
+  refs.resultPreview.innerHTML = '';
+  refs.resultTitle.textContent = `Bulk Results — ${data.success_count}/${data.total} succeeded`;
+  refs.resultMeta.innerHTML = `<span class="meta-tag">Bulk</span><span class="meta-tag">${data.total} URLs</span>`;
+  refs.resultActions.innerHTML = '';
+  refs.optionsList.innerHTML = '';
 
   data.results.forEach((r, i) => {
     const item = document.createElement('div');
@@ -461,7 +486,7 @@ function renderBulkResults(data) {
         };
       }
     }
-    optionsList.appendChild(item);
+    refs.optionsList.appendChild(item);
   });
 
   // Add "Download All" button for bulk mode
@@ -507,34 +532,34 @@ function renderBulkResults(data) {
         setTimeout(() => showBulkDoneState(successResults.length), 2000);
       };
       dlAllWrap.appendChild(dlAllBtn);
-      optionsList.insertBefore(dlAllWrap, optionsList.firstChild);
+      refs.optionsList.insertBefore(dlAllWrap, refs.optionsList.firstChild);
     }
   }
 
   resultCard.classList.add('show');
 }
 
+// ── FIX 3: showBulkDoneState — does NOT destroy resultCard innerHTML ──
+// Old code did resultCard.innerHTML = `...` which wiped resultTitle, resultMeta etc.
+// from the DOM. Now we just hide the card and show the done state in statusMsg.
 function showBulkDoneState(count) {
-  const resultCard = document.getElementById('resultCard');
-  if (!resultCard) return;
+  // Hide the result card — do NOT replace its innerHTML
+  resultCard.classList.remove('show');
 
-  resultCard.innerHTML = `
-    <div class="result-body" style="padding:32px 24px;text-align:center;">
-      <div style="font-size:52px;margin-bottom:16px;">🎉</div>
-      <div style="font-size:20px;font-weight:900;color:var(--green);margin-bottom:8px;">
-        All ${count} videos downloaded!
-      </div>
-      <div style="font-size:13px;color:var(--text-2);margin-bottom:28px;line-height:1.6;">
-        Your files are in your Downloads folder.<br/>Ready to download more?
-      </div>
-      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-        <button onclick="startNewBulk()" style="padding:12px 24px;border-radius:12px;background:var(--amber);border:none;color:#0c0c0f;font-size:14px;font-weight:700;cursor:pointer;font-family:'Cabinet Grotesk',sans-serif;">
-          📦 New Bulk Download
-        </button>
-        <button onclick="switchToSingleMode()" style="padding:12px 24px;border-radius:12px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:14px;font-weight:700;cursor:pointer;font-family:'Cabinet Grotesk',sans-serif;">
-          ↓ Single Download
-        </button>
-      </div>
+  // Restore original card structure silently so next fetch works
+  restoreResultCard();
+
+  // Show done state in status bar with action buttons
+  statusMsg.className = 'status-msg show success';
+  statusMsg.innerHTML = `
+    <div style="margin-bottom:10px;">🎉 All ${count} videos downloaded! Your files are in the Downloads folder.</div>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+      <button onclick="startNewBulk()" style="padding:12px 24px;border-radius:12px;background:var(--amber);border:none;color:#0c0c0f;font-size:14px;font-weight:700;cursor:pointer;font-family:'Cabinet Grotesk',sans-serif;">
+        📦 New Bulk Download
+      </button>
+      <button onclick="switchToSingleMode()" style="padding:12px 24px;border-radius:12px;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:14px;font-weight:700;cursor:pointer;font-family:'Cabinet Grotesk',sans-serif;">
+        ↓ Single Download
+      </button>
     </div>`;
 }
 
@@ -546,9 +571,13 @@ function startNewBulk() {
   progressWrap.classList.remove('show');
   statusMsg.className = 'status-msg';
   window._lastResultData = null;
+  restoreResultCard();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+// ── FIX 3 continued: switchToSingleMode — restores resultCard DOM structure ──
+// Old code never restored the card after showBulkDoneState destroyed it,
+// so renderResult() failed silently (null refs for resultTitle, resultMeta etc.)
 function switchToSingleMode() {
   // Switch to single mode and reset
   if (isBulkMode) {
@@ -559,6 +588,11 @@ function switchToSingleMode() {
     document.querySelector('.url-icon').style.display = '';
     bulkInput.value = '';
   }
+
+  // CRITICAL FIX — restore resultCard original structure
+  // so renderResult() can find resultTitle, resultMeta, resultActions, optionsList
+  restoreResultCard();
+
   resultCard.classList.remove('show');
   progressWrap.classList.remove('show');
   statusMsg.className = 'status-msg';
@@ -644,6 +678,7 @@ function resetForNextDownload() {
   if (statusMsg) statusMsg.className = 'status-msg';
   const resultCard = document.getElementById('resultCard');
   if (resultCard) resultCard.classList.remove('show');
+  restoreResultCard();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1971,7 +2006,7 @@ Works on Samsung, Redmi, Realme, OnePlus, Vivo, Oppo and all Android phones.`
 function onQualityChange() {
   // Re-render results with new quality filter if results are showing
   if (resultCard.classList.contains('show') && window._lastResultData) {
-    renderResults(window._lastResultData, window._lastSourceUrl);
+    renderResult(window._lastResultData, window._lastSourceUrl);
   }
 }
 
