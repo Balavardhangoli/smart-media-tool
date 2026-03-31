@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Settings — Smart Media Fetcher | Free Video Downloaders</title>
-<meta name="description" content="Manage your Smart Media Fetcher account settings. Free online media downloader for Instagram Reels, YouTube videos and more."/>
+<title>Settings — VideoDl | Free Video Downloader</title>
+<meta name="description" content="Manage your VideoDl account settings. Free online media downloader for Instagram Reels, YouTube videos and more."/>
 <meta name="robots" content="noindex"/>
-<meta property="og:title" content="Settings — Smart Media Fetcher | Free Video Downloader"/>
-<meta property="og:description" content="Manage your Smart Media Fetcher account settings. Free online media downloader for Instagram Reels, YouTube videos and more."/>
-<meta property="og:url" content="https://smart-media-fetcher.onrender.com/"/>
+<meta property="og:title" content="Settings — VideoDl | Free Video Downloader"/>
+<meta property="og:description" content="Manage your VideoDl account settings. Free online media downloader for Instagram Reels, YouTube videos and more."/>
+<meta property="og:url" content="https://videodl.onrender.com/"/>
 <meta name="theme-color" content="#fbbf24"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
@@ -152,17 +152,17 @@ body{background:var(--bg);color:var(--text);font-family:'Cabinet Grotesk',sans-s
 <div class="toast" id="toast"></div>
 <script>
 const API='/api/v1';
-let isDark=localStorage.getItem('smf_theme')!=='light';
-let prefs=JSON.parse(localStorage.getItem('smf_prefs')||'{}');
+let isDark=localStorage.getItem('vdl_theme')!=='light';
+let prefs=JSON.parse(localStorage.getItem('vdl_prefs')||'{}');
 const ACCENTS=['#fbbf24','#38bdf8','#34d399','#a78bfa','#f87171','#fb923c'];
 
-function applyTheme(){document.documentElement.setAttribute('data-theme',isDark?'dark':'light');document.getElementById('themeBtn').textContent=isDark?'🌙':'☀️';localStorage.setItem('smf_theme',isDark?'dark':'light');}
+function applyTheme(){document.documentElement.setAttribute('data-theme',isDark?'dark':'light');document.getElementById('themeBtn').textContent=isDark?'🌙':'☀️';localStorage.setItem('vdl_theme',isDark?'dark':'light');}
 applyTheme();
 document.getElementById('themeBtn').onclick=()=>{isDark=!isDark;applyTheme();const s=document.getElementById('themeSelect');if(s)s.value=isDark?'dark':'light';};
 
 function showToast(msg,type='success'){const t=document.getElementById('toast');t.textContent=(type==='success'?'✅ ':'❌ ')+msg;t.className=`toast ${type} show`;setTimeout(()=>t.classList.remove('show'),3000);}
-function getUser(){try{return JSON.parse(localStorage.getItem('smf_user')||'{}');}catch(e){return{};}}
-function getToken(){return localStorage.getItem('smf_token');}
+function getUser(){try{return JSON.parse(localStorage.getItem('vdl_user')||'{}');}catch(e){return{};}}
+function getToken(){return localStorage.getItem('vdl_token');}
 function switchTab(tab){document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));document.querySelectorAll('.tab-content').forEach(c=>c.classList.toggle('active',c.id==='tab-'+tab));}
 function pickAccent(c,btn){prefs.accent=c;document.querySelectorAll('.accent-btn').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');}
 function togglePref(key,btn){btn.classList.toggle('on');prefs[key]=btn.classList.contains('on');}
@@ -218,7 +218,7 @@ async function saveProfile(){
     // Update localStorage with new data
     const user=getUser();
     user.username=username;
-    localStorage.setItem('smf_user',JSON.stringify(user));
+    localStorage.setItem('vdl_user',JSON.stringify(user));
 
     showToast('✅ Profile updated successfully!');
 
@@ -265,7 +265,7 @@ async function changePassword(){
     const mt=document.getElementById('matchText');if(mt)mt.textContent='';
     const pr=document.getElementById('pwRules');if(pr)pr.style.display='none';
     const lc=document.getElementById('lastChanged');
-    if(lc){lc.textContent='Just now';localStorage.setItem('smf_pw_changed',Date.now());}
+    if(lc){lc.textContent='Just now';localStorage.setItem('vdl_pw_changed',Date.now());}
   }catch(e){showToast(e.message,'error');}
   finally{if(btn){btn.textContent='🔒 Update Password';btn.disabled=false;}}
 }
@@ -273,11 +273,11 @@ async function changePassword(){
 function savePrefs(){
   prefs.quality=document.getElementById('prefQuality').value;
   prefs.format=document.getElementById('prefFormat').value;
-  localStorage.setItem('smf_prefs',JSON.stringify(prefs));
+  localStorage.setItem('vdl_prefs',JSON.stringify(prefs));
   showToast('Preferences saved!');
 }
 
-function saveAppearance(){localStorage.setItem('smf_prefs',JSON.stringify(prefs));showToast('Appearance saved!');}
+function saveAppearance(){localStorage.setItem('vdl_prefs',JSON.stringify(prefs));showToast('Appearance saved!');}
 
 let _confirmAction = null;
 
@@ -314,7 +314,7 @@ async function executeConfirm() {
   closeConfirm();
   if (_confirmAction === 'clear') {
     const user = getUser();
-    const key  = 'smf_history_' + (user.username || user.email || 'user').replace(/[^a-z0-9]/gi, '_');
+    const key  = 'vdl_history_' + (user.username || user.email || 'user').replace(/[^a-z0-9]/gi, '_');
     localStorage.setItem(key, '[]');
     showToast('Download history cleared!');
   } else if (_confirmAction === 'delete') {
@@ -486,7 +486,7 @@ function renderPage(){
     </div>`;
 }
 renderPage();
-const _ts=localStorage.getItem('smf_pw_changed');
+const _ts=localStorage.getItem('vdl_pw_changed');
 if(_ts){const _el=document.getElementById('lastChanged');if(_el){const _d=new Date(parseInt(_ts));_el.textContent=_d.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});}}
 </script>
 </body>
