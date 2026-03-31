@@ -1,25 +1,25 @@
-/* Smart Media Fetcher — Main Application JS */
+/* VideoDL — Main Application JS */
 /* Generated from index.html */
 
 'use strict';
 
 
 const API = '/api/v1';
-let authToken    = localStorage.getItem('smf_token') || null;
+let authToken    = localStorage.getItem('vdl_token') || null;
 let isBulkMode   = false;
 let isProcessing = false;
 
 function getHistoryKey() {
 
   if (!authToken) return null;
-  const user = localStorage.getItem('smf_user');
+  const user = localStorage.getItem('vdl_user');
   if (user) {
     try {
       const u = JSON.parse(user);
-      return 'smf_history_' + (u.username || u.email || 'guest').replace(/[^a-z0-9]/gi,'_');
+      return 'vdl_history_' + (u.username || u.email || 'guest').replace(/[^a-z0-9]/gi,'_');
     } catch(e) {}
   }
-  return 'smf_history_user';
+  return 'vdl_history_user';
 }
 let history = authToken ? JSON.parse(localStorage.getItem(getHistoryKey()) || '[]') : [];
 
@@ -151,9 +151,21 @@ urlInput.addEventListener('keydown', e => {
 toggleBulk.addEventListener('click', () => {
   isBulkMode = !isBulkMode;
   bulkWrap.classList.toggle('show', isBulkMode);
-  toggleBulk.textContent = isBulkMode ? '✕ Single Mode' : '⊞ Bulk Mode';
   urlInput.style.display = isBulkMode ? 'none' : '';
   document.querySelector('.url-icon').style.display = isBulkMode ? 'none' : '';
+
+  // Update button appearance
+  const bulkIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`;
+  const closeIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+  if (isBulkMode) {
+    toggleBulk.innerHTML = closeIcon + ' Single';
+    toggleBulk.classList.add('active');
+    toggleBulk.title = 'Switch to Single Mode';
+  } else {
+    toggleBulk.innerHTML = bulkIcon + ' Bulk';
+    toggleBulk.classList.remove('active');
+    toggleBulk.title = 'Switch to Bulk Mode';
+  }
 
   // Clear everything when switching modes
   hideBulkDoneOverlay();
@@ -164,17 +176,19 @@ toggleBulk.addEventListener('click', () => {
   resultCard.classList.remove('show');
   progressWrap.classList.remove('show');
   statusMsg.className = 'status-msg';
+  statusMsg.innerHTML = '';
   optionsList.innerHTML = '';
   resultActions.innerHTML = '';
   resultPreview.innerHTML = '';
   resultTitle.textContent = '';
+  resultMeta.innerHTML = '';
   window._lastResultData = null;
+  window._lastSourceUrl  = null;
 
   if (isBulkMode) {
     bulkInput.focus();
     showStatus('info', '📦 Bulk mode — paste up to 20 URLs, one per line.');
   } else {
-    statusMsg.classList.remove('show');
     setTimeout(() => urlInput.focus(), 50);
   }
 });
@@ -582,7 +596,10 @@ function switchToSingleMode() {
   if (isBulkMode) {
     isBulkMode = false;
     bulkWrap.classList.remove('show');
-    toggleBulk.textContent = '⊞ Bulk Mode';
+    const bulkIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>`;
+    toggleBulk.innerHTML = bulkIcon + ' Bulk';
+    toggleBulk.classList.remove('active');
+    toggleBulk.title = 'Switch to Bulk Mode';
     urlInput.style.display = '';
     document.querySelector('.url-icon').style.display = '';
     bulkInput.value = '';
@@ -744,12 +761,12 @@ function timeAgo(ts) {
 }
 
 const themeToggle = document.getElementById('themeToggle');
-let isDark = localStorage.getItem('smf_theme') !== 'light';
+let isDark = localStorage.getItem('vdl_theme') !== 'light';
 
 function applyTheme() {
   document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
   themeToggle.textContent = isDark ? '🌙' : '☀️';
-  localStorage.setItem('smf_theme', isDark ? 'dark' : 'light');
+  localStorage.setItem('vdl_theme', isDark ? 'dark' : 'light');
 }
 applyTheme();
 themeToggle.addEventListener('click', () => { isDark = !isDark; applyTheme(); });
@@ -828,8 +845,8 @@ window.addEventListener('load', function() {
 
 function handleLogout() {
   authToken = null;
-  localStorage.removeItem('smf_token');
-  localStorage.removeItem('smf_user');
+  localStorage.removeItem('vdl_token');
+  localStorage.removeItem('vdl_user');
 
   document.getElementById('authButtons').style.display = '';
   document.getElementById('userMenu').style.display = 'none';
@@ -869,7 +886,7 @@ function setLoggedInUI(userData) {
   document.getElementById('dropdownEmail').textContent   = email;
 
   if (userData) {
-    localStorage.setItem('smf_user', JSON.stringify(userData));
+    localStorage.setItem('vdl_user', JSON.stringify(userData));
   }
 
   const hKey = getHistoryKey();
@@ -892,7 +909,7 @@ document.getElementById('loginSubmit').addEventListener('click', async () => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Login failed.');
     authToken = data.access_token;
-    localStorage.setItem('smf_token', authToken);
+    localStorage.setItem('vdl_token', authToken);
     authModal.classList.remove('show');
 
     // Fetch real username from backend — not just email prefix
@@ -1438,8 +1455,8 @@ async function resetPassword() {
   }
 }
 
-let settingsPrefs = JSON.parse(localStorage.getItem('smf_prefs') || '{}');
-let selectedAvatarColor = localStorage.getItem('smf_avatar_color') || '#fbbf24';
+let settingsPrefs = JSON.parse(localStorage.getItem('vdl_prefs') || '{}');
+let selectedAvatarColor = localStorage.getItem('vdl_avatar_color') || '#fbbf24';
 
 function openSettings(e) {
   if (e) e.stopPropagation();
@@ -1475,7 +1492,7 @@ function switchTab(tabName, btn) {
 }
 
 function loadSettingsData() {
-  const user = JSON.parse(localStorage.getItem('smf_user') || '{}');
+  const user = JSON.parse(localStorage.getItem('vdl_user') || '{}');
   const name  = user.username || user.email?.split('@')[0] || 'User';
   const email = user.email || '';
 
@@ -1520,9 +1537,9 @@ async function saveUsername() {
     alert('Username must be at least 3 characters.'); return;
   }
 
-  const user = JSON.parse(localStorage.getItem('smf_user') || '{}');
+  const user = JSON.parse(localStorage.getItem('vdl_user') || '{}');
   user.username = newName;
-  localStorage.setItem('smf_user', JSON.stringify(user));
+  localStorage.setItem('vdl_user', JSON.stringify(user));
 
   document.getElementById('displayUsername').textContent = newName;
   document.getElementById('userDisplayName').textContent = newName;
@@ -1538,7 +1555,7 @@ function selectAvatarColor(el) {
   document.querySelectorAll('.avatar-color').forEach(a => a.classList.remove('selected'));
   el.classList.add('selected');
   selectedAvatarColor = el.dataset.color;
-  localStorage.setItem('smf_avatar_color', selectedAvatarColor);
+  localStorage.setItem('vdl_avatar_color', selectedAvatarColor);
 
   document.getElementById('previewAvatar').style.background = selectedAvatarColor;
   document.getElementById('userAvatar').style.background    = selectedAvatarColor;
@@ -1601,7 +1618,7 @@ async function changePassword() {
 
 function savePref(key, value) {
   settingsPrefs[key] = value;
-  localStorage.setItem('smf_prefs', JSON.stringify(settingsPrefs));
+  localStorage.setItem('vdl_prefs', JSON.stringify(settingsPrefs));
   showSettingsSuccess('✅ Preference saved!');
 }
 
@@ -1615,7 +1632,7 @@ function setAccent(el, color, hover) {
   document.querySelectorAll('.accent-dot').forEach(d => d.classList.remove('selected'));
   el.classList.add('selected');
   document.documentElement.style.setProperty('--amber', color);
-  localStorage.setItem('smf_accent', color);
+  localStorage.setItem('vdl_accent', color);
   showSettingsSuccess('✅ Accent color applied!');
 }
 
@@ -1654,10 +1671,10 @@ function showSettingsSuccess(msg) {
   showStatus('success', msg);
 }
 
-const savedAccent = localStorage.getItem('smf_accent');
+const savedAccent = localStorage.getItem('vdl_accent');
 if (savedAccent) document.documentElement.style.setProperty('--amber', savedAccent);
 
-const savedAvatarColor = localStorage.getItem('smf_avatar_color');
+const savedAvatarColor = localStorage.getItem('vdl_avatar_color');
 if (savedAvatarColor) {
   const av = document.getElementById('userAvatar');
   if (av) av.style.background = savedAvatarColor;
@@ -1697,10 +1714,10 @@ function switchTab(name, btn) {
 }
 
 function loadSettingsData() {
-  const user = JSON.parse(localStorage.getItem('smf_user') || '{}');
+  const user = JSON.parse(localStorage.getItem('vdl_user') || '{}');
   const name  = user.username || user.email?.split('@')[0] || 'User';
   const email = user.email || '';
-  const color = localStorage.getItem('smf_avatar_color') || '#fbbf24';
+  const color = localStorage.getItem('vdl_avatar_color') || '#fbbf24';
 
   document.getElementById('settingsAvatar').textContent = name.charAt(0).toUpperCase();
   document.getElementById('settingsAvatar').style.background = color;
@@ -1738,19 +1755,19 @@ function loadSettingsData() {
   if (document.getElementById('toggleSize'))
     document.getElementById('toggleSize').checked = prefs.showSize !== false;
 
-  const theme = localStorage.getItem('smf_theme') || 'dark';
+  const theme = localStorage.getItem('vdl_theme') || 'dark';
   document.querySelectorAll('[id^="theme"]').forEach(el => el.classList.remove('selected'));
   const themeEl = document.getElementById('theme' + theme.charAt(0).toUpperCase() + theme.slice(1));
   if (themeEl) themeEl.classList.add('selected');
 
-  const accent = localStorage.getItem('smf_accent') || '#fbbf24';
+  const accent = localStorage.getItem('vdl_accent') || '#fbbf24';
   document.querySelectorAll('.accent-chip').forEach(c => {
     c.classList.toggle('selected', c.dataset.accent === accent);
   });
 }
 
 function setAvatarColor(color, dot) {
-  localStorage.setItem('smf_avatar_color', color);
+  localStorage.setItem('vdl_avatar_color', color);
   document.getElementById('settingsAvatar').style.background = color;
   document.getElementById('userAvatar').style.background = color;
   document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('selected'));
@@ -1762,9 +1779,9 @@ function saveProfile() {
   if (!username) { alert('Username cannot be empty.'); return; }
   if (username.length < 3) { alert('Username must be at least 3 characters.'); return; }
 
-  const user = JSON.parse(localStorage.getItem('smf_user') || '{}');
+  const user = JSON.parse(localStorage.getItem('vdl_user') || '{}');
   user.username = username;
-  localStorage.setItem('smf_user', JSON.stringify(user));
+  localStorage.setItem('vdl_user', JSON.stringify(user));
 
   document.getElementById('settingsName').textContent  = username;
   document.getElementById('userDisplayName').textContent = username;
@@ -1841,7 +1858,7 @@ function savePrefs() {
   settingsPrefs.saveHistory = document.getElementById('toggleHistory')?.checked !== false;
   settingsPrefs.autoDetect  = document.getElementById('toggleDetect')?.checked !== false;
   settingsPrefs.showSize    = document.getElementById('toggleSize')?.checked !== false;
-  localStorage.setItem('smf_prefs', JSON.stringify(settingsPrefs));
+  localStorage.setItem('vdl_prefs', JSON.stringify(settingsPrefs));
   showSettingsToast('Preferences saved!');
 }
 
@@ -1854,13 +1871,13 @@ function setThemeMode(mode, el) {
     isDark = mode === 'dark';
   }
   applyTheme();
-  localStorage.setItem('smf_theme_mode', mode);
+  localStorage.setItem('vdl_theme_mode', mode);
 }
 
 function setAccentColor(color, el) {
   document.querySelectorAll('.accent-chip').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
-  localStorage.setItem('smf_accent', color);
+  localStorage.setItem('vdl_accent', color);
   document.documentElement.style.setProperty('--amber', color);
   document.documentElement.style.setProperty('--amber-dim', color + '20');
   document.documentElement.style.setProperty('--border-hi', color + '4d');
@@ -1870,12 +1887,12 @@ function setAccentColor(color, el) {
 
 function applyCompact(on) {
   document.body.style.setProperty('--radius', on ? '10px' : '16px');
-  localStorage.setItem('smf_compact', on ? '1' : '0');
+  localStorage.setItem('vdl_compact', on ? '1' : '0');
 }
 
 function applyAnimations(on) {
   document.body.style.setProperty('--transition', on ? 'all 0.2s' : 'none');
-  localStorage.setItem('smf_animations', on ? '1' : '0');
+  localStorage.setItem('vdl_animations', on ? '1' : '0');
 }
 
 function clearHistoryFromSettings() {
@@ -1890,7 +1907,7 @@ function clearHistoryFromSettings() {
 
 async function deleteAccount() {
   const email    = document.getElementById('deleteConfirmEmail').value.trim();
-  const user     = JSON.parse(localStorage.getItem('smf_user') || '{}');
+  const user     = JSON.parse(localStorage.getItem('vdl_user') || '{}');
   const expected = user.email || '';
 
   if (!email) { alert('Please enter your email to confirm.'); return; }
@@ -1945,14 +1962,14 @@ function showSettingsToast(msg) {
 }
 
 (function applyAccentOnLoad() {
-  const accent = localStorage.getItem('smf_accent');
+  const accent = localStorage.getItem('vdl_accent');
   if (accent && accent !== '#fbbf24') {
     document.documentElement.style.setProperty('--amber', accent);
     document.documentElement.style.setProperty('--amber-dim', accent + '20');
     document.documentElement.style.setProperty('--border-hi', accent + '4d');
     document.documentElement.style.setProperty('--glow-a', accent + '33');
   }
-  const avatarColor = localStorage.getItem('smf_avatar_color');
+  const avatarColor = localStorage.getItem('vdl_avatar_color');
   if (avatarColor) {
     const av = document.getElementById('userAvatar');
     if (av) av.style.background = avatarColor;
@@ -1970,7 +1987,7 @@ Works on Android, iPhone, PC — completely free, no watermark, no app needed.`
   {
     q: "Can I download Instagram Reels without watermark?",
     a: `<strong>Yes! 100% without watermark.</strong><br><br>
-Smart Media Fetcher downloads directly from Instagram's servers. Your downloaded video will have:<br>
+VideoDL downloads directly from Instagram's servers. Your downloaded video will have:<br>
 ✅ No watermark or logo<br>
 ✅ Original quality (up to 1080p)<br>
 ✅ Original audio intact<br>
@@ -1986,7 +2003,7 @@ Smart Media Fetcher downloads directly from Instagram's servers. Your downloaded
 Works on Samsung, Redmi, Realme, OnePlus, Vivo, Oppo and all Android phones.`
   },
   {
-    q: "Is Smart Media Fetcher safe to use?",
+    q: "Is VideoDL safe to use?",
     a: `<strong>Yes, completely safe!</strong><br><br>
 🔒 We never ask for your Instagram or YouTube password<br>
 🔒 We don't store your downloaded files<br>
@@ -1996,7 +2013,7 @@ Works on Samsung, Redmi, Realme, OnePlus, Vivo, Oppo and all Android phones.`
   },
   {
     q: "What platforms are supported?",
-    a: `Smart Media Fetcher supports:<br><br>
+    a: `VideoDL supports:<br><br>
 📸 <strong>Instagram</strong> — Reels, posts, carousels<br>
 ▶️ <strong>YouTube</strong> — Videos, Shorts, MP3 audio<br>
 📘 <strong>Facebook</strong> — Videos and posts<br>
@@ -2071,13 +2088,13 @@ renderFAQ();
 
 // ══════════════════════════════════════════════════════════
 //  SESSION RESTORE — runs on every page load
-//  When user returns from /settings or /downloads, restore their sessions
+//  When user returns from /settings or /downloads, restore their session
 // ══════════════════════════════════════════════════════════
 (async function restoreSession() {
-  const token = localStorage.getItem('smf_token');
+  const token = localStorage.getItem('vdl_token');
   if (!token) return; // not logged in
 
-  const cachedUser = localStorage.getItem('smf_user');
+  const cachedUser = localStorage.getItem('vdl_user');
   if (cachedUser) {
     try {
       // Restore from cache immediately so UI shows instantly
@@ -2094,12 +2111,12 @@ renderFAQ();
     if (res.ok) {
       const userData = await res.json();
       // Update with fresh data from server (catches username changes)
-      localStorage.setItem('smf_user', JSON.stringify(userData));
+      localStorage.setItem('vdl_user', JSON.stringify(userData));
       setLoggedInUI(userData);
     } else {
       // Token expired or invalid — sign out cleanly
-      localStorage.removeItem('smf_token');
-      localStorage.removeItem('smf_user');
+      localStorage.removeItem('vdl_token');
+      localStorage.removeItem('vdl_user');
       document.getElementById('authButtons').style.display = '';
       document.getElementById('userMenuWrap').style.display = 'none';
     }
