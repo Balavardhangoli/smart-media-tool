@@ -219,7 +219,7 @@ async function triggerAnalyze() {
     await animateProgress(0, 30, 500, 'Connecting...', url.slice(0, 60));
     await animateProgress(30, 65, 700, 'Extracting media info...', 'Analyzing source');
 
-    const quality = document.getElementById('qualitySelect').value;
+    const quality = 'best';
     const res = await fetch(`${API}/download/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
@@ -257,7 +257,7 @@ async function triggerBulk() {
     const res  = await fetch(`${API}/download/bulk`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
-      body: JSON.stringify({ urls, quality: document.getElementById('qualitySelect').value }),
+      body: JSON.stringify({ urls, quality: 'best' }),
     });
     const data = await res.json();
     await animateProgress(40, 100, 500, 'Done!', '');
@@ -337,7 +337,7 @@ function renderResult(data, sourceUrl) {
   if (data.options.length > 1) {
 
     // Get selected quality from dropdown
-    const selectedQuality = document.getElementById('qualitySelect').value; // best, 1080p, 720p, 480p, 360p, audio
+    const selectedQuality = 'best'; // best, 1080p, 720p, 480p, 360p, audio
 
     // Filter options based on selected quality
     let filteredOptions = data.options;
@@ -431,7 +431,7 @@ function renderBulkResults(data) {
         </div>`;
     } else {
       // Success — pick best option based on quality dropdown
-      const selectedQuality = document.getElementById('qualitySelect').value;
+      const selectedQuality = 'best';
       let bestOpt = r.options[0];
 
       if (selectedQuality === 'audio') {
@@ -509,7 +509,7 @@ function renderBulkResults(data) {
         // Download one by one with 1s gap
         for (let i = 0; i < successResults.length; i++) {
           const r = successResults[i];
-          const selectedQuality = document.getElementById('qualitySelect').value;
+          const selectedQuality = 'best';
           let bestOpt = r.options[0];
           if (selectedQuality === 'audio') {
             const a = r.options.find(o => (o.label||'').toLowerCase().includes('mp3') || (o.label||'').toLowerCase().includes('kbps'));
