@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>My Downloads — Smart Media Fetcher | Free Video Downloader</title>
-<meta name="description" content="View and manage your download history. Smart Media Fetcher — free online Instagram Reel and YouTube video downloader."/>
+<title>My Downloads — VideoDl | Free Video Downloader</title>
+<meta name="description" content="View and manage your download history. VideoDl — free online Instagram Reel and YouTube video downloader."/>
 <meta name="robots" content="noindex"/>
-<meta property="og:title" content="My Downloads — Smart Media Fetcher | Free Video Downloader"/>
-<meta property="og:description" content="View and manage your download history. Smart Media Fetcher — free online Instagram Reel and YouTube video downloader."/>
-<meta property="og:url" content="https://smart-media-fetcher.onrender.com/"/>
+<meta property="og:title" content="My Downloads — VideoDl | Free Video Downloader"/>
+<meta property="og:description" content="View and manage your download history. VideoDl — free online Instagram Reel and YouTube video downloader."/>
+<meta property="og:url" content="https://videodl.onrender.com/"/>
 <meta name="theme-color" content="#fbbf24"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
@@ -259,21 +259,21 @@ body{background:var(--bg);color:var(--text);font-family:'Cabinet Grotesk',sans-s
 const ICONS={youtube:'▶️',instagram:'📸',twitter:'🐦',facebook:'📘',reddit:'🤖',direct:'🔗',image:'🖼️',video:'🎬',audio:'🎵',document:'📄',unknown:'🔗'};
 const PER_PAGE=10;
 let currentPage=1,currentFilter='all',currentSearch='',currentSort='newest';
-let isDark=localStorage.getItem('smf_theme')!=='light';
+let isDark=localStorage.getItem('vdl_theme')!=='light';
 
 function applyTheme(){
   document.documentElement.setAttribute('data-theme',isDark?'dark':'light');
   document.getElementById('themeBtn').textContent=isDark?'🌙':'☀️';
 }
 applyTheme();
-document.getElementById('themeBtn').onclick=()=>{isDark=!isDark;localStorage.setItem('smf_theme',isDark?'dark':'light');applyTheme();};
+document.getElementById('themeBtn').onclick=()=>{isDark=!isDark;localStorage.setItem('vdl_theme',isDark?'dark':'light');applyTheme();};
 
 function getHistoryKey(){
-  const t=localStorage.getItem('smf_token');
+  const t=localStorage.getItem('vdl_token');
   if(!t)return null;
-  const u=localStorage.getItem('smf_user');
-  if(u){try{const p=JSON.parse(u);return'smf_history_'+(p.username||p.email||'user').replace(/[^a-z0-9]/gi,'_');}catch(e){}}
-  return'smf_history_user';
+  const u=localStorage.getItem('vdl_user');
+  if(u){try{const p=JSON.parse(u);return'vdl_history_'+(p.username||p.email||'user').replace(/[^a-z0-9]/gi,'_');}catch(e){}}
+  return'vdl_history_user';
 }
 
 function getHistory(){
@@ -542,7 +542,7 @@ function renderList(){
 function goPage(p){currentPage=p;renderList();window.scrollTo({top:0,behavior:'smooth'});}
 
 function renderPage(){
-  const token=localStorage.getItem('smf_token');
+  const token=localStorage.getItem('vdl_token');
   const list=document.getElementById('dlList');
   if(!token){
     document.getElementById('statsGrid').innerHTML='';
