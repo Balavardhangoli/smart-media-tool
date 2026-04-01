@@ -783,14 +783,20 @@ document.getElementById('openLogin').addEventListener('click', () => {
   document.getElementById('loginPassword').value = '';
 });
 document.getElementById('openRegister').addEventListener('click', () => {
+  const alreadyShowingRegister = authModal.classList.contains('show') && registerForm.style.display !== 'none';
   loginForm.style.display = 'none'; registerForm.style.display = '';
   authModal.classList.add('show');
 
-  document.getElementById('regEmail').value = '';
-  document.getElementById('regUsername').value = '';
-  document.getElementById('regPassword').value = '';
-  const hint = document.getElementById('passwordHint');
-  if (hint) hint.innerHTML = '';
+  // Only clear fields on first open, not when user clicks Sign Up again mid-fill
+  if (!alreadyShowingRegister) {
+    document.getElementById('regEmail').value = '';
+    document.getElementById('regUsername').value = '';
+    document.getElementById('regPassword').value = '';
+    const hint = document.getElementById('passwordHint');
+    if (hint) hint.innerHTML = '';
+    const uHint = document.getElementById('usernameHint');
+    if (uHint) { uHint.style.color = 'var(--text-3)'; uHint.textContent = "Only letters, numbers, dots (.), hyphens (-), underscores (_). No spaces."; }
+  }
 });
 document.getElementById('closeModal').addEventListener('click', () => {
   authModal.classList.remove('show');
@@ -2057,6 +2063,27 @@ function validateUsernameField(input) {
   }
   hint.style.color = 'var(--green)';
   hint.textContent = '✅ Username looks good!';
+}
+
+function subscribeNewsletter(btn) {
+  const input = btn.previousElementSibling;
+  const email = input ? input.value.trim() : '';
+  const emailRe = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z][a-zA-Z0-9.\-]*\.[a-zA-Z]{2,}$/;
+  if (!email || !emailRe.test(email)) {
+    input.style.borderColor = 'var(--red)';
+    input.placeholder = 'Please enter a valid email';
+    setTimeout(() => { input.style.borderColor = ''; input.placeholder = 'Enter your email address'; }, 2000);
+    return;
+  }
+  btn.textContent = '✅ Subscribed!';
+  btn.style.background = 'linear-gradient(135deg,#34d399,#059669)';
+  btn.disabled = true;
+  input.value = '';
+  setTimeout(() => {
+    btn.textContent = 'Subscribe';
+    btn.style.background = '';
+    btn.disabled = false;
+  }, 3000);
 }
 
 function renderFAQ() {
