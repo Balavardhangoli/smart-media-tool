@@ -2066,7 +2066,7 @@ function validateUsernameField(input) {
 }
 
 function subscribeNewsletter(btn) {
-  const input = btn.previousElementSibling;
+  const input = document.getElementById('footerEmailInput') || btn.previousElementSibling;
   const email = input ? input.value.trim() : '';
   const emailRe = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z][a-zA-Z0-9.\-]*\.[a-zA-Z]{2,}$/;
   if (!email || !emailRe.test(email)) {
