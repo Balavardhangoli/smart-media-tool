@@ -1,21 +1,24 @@
 """
 services/downloader.py
-Main download orchestrator using RapidAPI Snap Video.
+Download orchestrator using yt-dlp (replaces RapidAPI).
+Supports: YouTube, Instagram, Facebook, Twitter/X, Reddit, TikTok, direct files.
 """
 import asyncio
 import os
 import re
+import tempfile
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse
 
 import httpx
+import yt_dlp
 
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.services.detector import DetectionResult, Platform, MediaType
-from app.utils.file_utils import sanitize_filename, extension_from_mime
 from app.utils.ssrf_guard import validate_url
 
 logger = get_logger(__name__)
@@ -31,47 +34,13 @@ BROWSER_HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
 
-# ── RapidAPI Multi-Key Rotation ───────────────────────────
-# Add multiple keys: RAPIDAPI_KEY, RAPIDAPI_KEY_2, RAPIDAPI_KEY_3 etc.
-# When one key hits monthly limit, automatically switches to next key.
-RAPIDAPI_HOST = os.getenv("RAPIDAPI_HOST", "snap-video3.p.rapidapi.com")
-RAPIDAPI_URL  = f"https://{RAPIDAPI_HOST}/download"
-
-def _load_api_keys() -> list:
-    """Load all available RapidAPI keys from environment variables."""
-    keys = []
-    # Primary key
-    k1 = os.getenv("RAPIDAPI_KEY", "").strip()
-    if k1: keys.append(k1)
-    # Additional keys: RAPIDAPI_KEY_2, RAPIDAPI_KEY_3 ... RAPIDAPI_KEY_10
-    for i in range(2, 11):
-        k = os.getenv(f"RAPIDAPI_KEY_{i}", "").strip()
-        if k: keys.append(k)
-    return keys
-
-# Load all keys at startup
-_API_KEYS = _load_api_keys()
-_current_key_index = 0  # tracks which key is active
-
-def _get_active_key() -> str:
-    """Get the currently active API key."""
-    if not _API_KEYS:
-        return ""
-    return _API_KEYS[_current_key_index % len(_API_KEYS)]
-
-def _rotate_to_next_key() -> bool:
-    """Switch to next available key. Returns True if rotated, False if no more keys."""
-    global _current_key_index
-    if len(_API_KEYS) <= 1:
-        return False  # only one key, can't rotate
-    _current_key_index = (_current_key_index + 1) % len(_API_KEYS)
-    logger.warning(f"api_key_rotated: now using key index {_current_key_index}")
-    return True
-
-# Backwards compat
-RAPIDAPI_KEY = _get_active_key()
+# ── Cookies path (optional - helps with age-restricted / logged-in content) ──
+COOKIES_FILE = os.getenv("YTDLP_COOKIES_FILE", "")   # e.g. /app/cookies.txt
 
 
+# ══════════════════════════════════════════════════════════
+#  DATA CLASSES
+# ══════════════════════════════════════════════════════════
 @dataclass
 class MediaOption:
     label:      str
@@ -87,301 +56,213 @@ class MediaOption:
 
 @dataclass
 class DownloadResult:
-    success:      bool
-    options:      List[MediaOption] = field(default_factory=list)
-    title:        Optional[str]     = None
-    thumbnail:    Optional[str]     = None
-    description:  Optional[str]     = None
-    platform:     Optional[str]     = None
-    error:        Optional[str]     = None
-    extra:        Dict[str, Any]    = field(default_factory=dict)
+    success:     bool
+    options:     List[MediaOption] = field(default_factory=list)
+    title:       Optional[str]     = None
+    thumbnail:   Optional[str]     = None
+    description: Optional[str]     = None
+    platform:    Optional[str]     = None
+    error:       Optional[str]     = None
+    extra:       Dict[str, Any]    = field(default_factory=dict)
 
 
 def _make_client() -> httpx.AsyncClient:
     return httpx.AsyncClient(
         headers=BROWSER_HEADERS,
-        timeout=httpx.Timeout(settings.http_timeout_seconds),
+        timeout=httpx.Timeout(30),
         follow_redirects=True,
-        verify=True,
     )
 
 
 # ══════════════════════════════════════════════════════════
-#  RAPIDAPI SNAP VIDEO HELPER
+#  YT-DLP CORE HELPER
 # ══════════════════════════════════════════════════════════
-async def _rapidapi_download(url: str) -> DownloadResult:
-    """Use RapidAPI Snap Video with automatic key rotation on quota exceeded."""
-    if not _API_KEYS:
-        return DownloadResult(
-            success=False,
-            error="API key not configured. Please add RAPIDAPI_KEY to environment.",
-        )
+def _build_ydl_opts(extra: dict = None) -> dict:
+    """Build yt-dlp options. Cookies optional for private/age-restricted content."""
+    opts = {
+        "quiet":           True,
+        "no_warnings":     True,
+        "noplaylist":      True,
+        "extract_flat":    False,
+        "socket_timeout":  20,
+        "retries":         3,
+        "http_headers":    BROWSER_HEADERS,
+        # Don't actually download — just extract info
+        "skip_download":   True,
+        "format":          "bestvideo+bestaudio/best",
+    }
+    if COOKIES_FILE and Path(COOKIES_FILE).exists():
+        opts["cookiefile"] = COOKIES_FILE
+    if extra:
+        opts.update(extra)
+    return opts
 
-    # Try each available key until one works
-    keys_tried = 0
-    max_tries  = len(_API_KEYS)
 
-    while keys_tried < max_tries:
-        active_key = _get_active_key()
-        headers = {
-            "x-rapidapi-host": RAPIDAPI_HOST,
-            "x-rapidapi-key":  active_key,
-        }
+async def _ytdlp_extract(url: str, extra_opts: dict = None) -> DownloadResult:
+    """
+    Use yt-dlp to extract all available formats from a URL.
+    Runs in a thread pool to avoid blocking the event loop.
+    """
+    def _extract():
+        opts = _build_ydl_opts(extra_opts)
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            return ydl.extract_info(url, download=False)
 
-        # Clean URL
-        clean_url = url.strip().rstrip("/")
+    try:
+        info = await asyncio.get_event_loop().run_in_executor(None, _extract)
+    except yt_dlp.utils.DownloadError as e:
+        msg = str(e)
+        if "Private video" in msg or "private" in msg.lower():
+            return DownloadResult(success=False,
+                error="This content is private. Only public content can be downloaded.")
+        if "age" in msg.lower() or "sign in" in msg.lower():
+            return DownloadResult(success=False,
+                error="Age-restricted content. Add cookies to enable this.")
+        if "not available" in msg.lower() or "removed" in msg.lower():
+            return DownloadResult(success=False,
+                error="Content not available. It may have been removed.")
+        return DownloadResult(success=False, error=f"Could not extract media: {msg[:200]}")
+    except Exception as e:
+        return DownloadResult(success=False, error=f"Extraction error: {str(e)[:200]}")
 
-        try:
-            async with httpx.AsyncClient(
-                timeout=httpx.Timeout(30),
-                follow_redirects=True,
-            ) as client:
-                resp = await client.post(
-                    RAPIDAPI_URL,
-                    data={"url": clean_url},
-                    headers=headers,
-                )
-                data = resp.json()
-                logger.info(f"rapidapi_response: {data}")
-        except Exception as e:
-            return DownloadResult(success=False, error=f"API request failed: {str(e)}")
+    if not info:
+        return DownloadResult(success=False, error="No media info returned.")
 
-        # Handle 429 — quota exceeded → try next key automatically
-        if resp.status_code == 429:
-            msg = data.get("message", "")
-            is_quota = "MONTHLY" in msg or "quota" in msg.lower() or "exceeded" in msg.lower()
-            if is_quota:
-                logger.warning(f"api_key_quota_exceeded: key index {_current_key_index}")
-                rotated = _rotate_to_next_key()
-                if rotated:
-                    keys_tried += 1
-                    logger.info(f"rotated_to_key_index: {_current_key_index} — retrying")
-                    continue  # retry with new key
-                # No more keys available
-                return DownloadResult(
-                    success=False,
-                    error="Monthly download limit reached on all API keys. Please add a new API key or wait until next month.",
-                )
-            return DownloadResult(
-                success=False,
-                error="Too many requests. Please wait a moment and try again.",
-            )
-
-        if resp.status_code != 200:
-            return DownloadResult(
-                success=False,
-                error=f"Download service error (HTTP {resp.status_code})",
-            )
-
-        # Check if RapidAPI returned quota message in body (200 but with error message)
-        if data.get("message") and not data.get("medias"):
-            msg = str(data["message"])
-            if "quota" in msg.lower() or "exceeded" in msg.lower() or "plan" in msg.lower():
-                logger.warning(f"api_key_quota_in_body: key index {_current_key_index}")
-                rotated = _rotate_to_next_key()
-                if rotated:
-                    keys_tried += 1
-                    continue  # retry with new key
-                return DownloadResult(
-                    success=False,
-                    error="Monthly download limit reached on all API keys. Please add a new API key.",
-                )
-            return DownloadResult(success=False, error=msg)
-
-        # Check if RapidAPI returned an error field
-        if data.get("error"):
-            return DownloadResult(
-                success=False,
-                error=f"Could not extract media: {data['error']}",
-            )
-
-        # Success — break out of retry loop
-        break
-
-    else:
-        # All keys exhausted
-        return DownloadResult(
-            success=False,
-            error="All API keys have reached their monthly limit. Please add more keys.",
-        )
-
-    options = []
-
-    # Use medias array — skip the top-level url field (it points back to YouTube)
-    # Some platforms return 'links' instead of 'medias'
-    media_list = data.get("medias") or data.get("links") or []
-    if media_list:
-        data["medias"] = media_list  # normalize to medias key
-    if data.get("medias"):
-        for i, item in enumerate(data["medias"]):
-            item_url = item.get("url") or item.get("videoUrl")
-            if not item_url:
-                continue
-            quality   = item.get("quality", "") or f"Option {i+1}"
-            extension = item.get("extension", "mp4").lower()
-
-            # RapidAPI sometimes returns size as string '0' or '5152734'
-            # Always convert to int safely
-            raw_size = item.get("size", 0)
-            try:
-                size = int(float(str(raw_size))) if raw_size not in (None, '', 'null') else 0
-            except (ValueError, TypeError):
-                size = 0
-
-            media_type = "audio" if extension in ("mp3", "m4a", "ogg", "wav") else "video"
-
-            options.append(MediaOption(
-                label=f"{quality} {extension.upper()}",
-                url=item_url,
-                media_type=media_type,
-                format=extension,
-                file_size=size if size > 0 else None,
-                thumbnail=data.get("thumbnail"),
-            ))
-
-    # Sort: real video files (size > 0) first
-    options.sort(key=lambda o: (o.file_size or 0), reverse=True)
+    options = _parse_formats(info)
 
     if not options:
-        return DownloadResult(
-            success=False,
-            error="No downloadable media found. The content may be private.",
-        )
-
-    title     = data.get("title") or data.get("name") or "Video"
-    thumbnail = data.get("thumbnail") or data.get("thumb")
+        return DownloadResult(success=False,
+            error="No downloadable formats found for this URL.")
 
     return DownloadResult(
         success=True,
-        title=title,
-        thumbnail=thumbnail,
+        title=info.get("title") or info.get("fulltitle") or "Video",
+        thumbnail=info.get("thumbnail"),
+        description=info.get("description", "")[:300] if info.get("description") else None,
         options=options,
     )
 
 
-# ══════════════════════════════════════════════════════════
-#  ORCHESTRATOR
-# ══════════════════════════════════════════════════════════
-async def process_url(detection: DetectionResult, quality: str = "best") -> DownloadResult:
-    """Route to the correct handler based on detected platform."""
-    handlers = {
-        Platform.DIRECT:    handle_direct,
-        Platform.YOUTUBE:   handle_youtube,
-        Platform.INSTAGRAM: handle_instagram,
-        Platform.TIKTOK:    handle_tiktok,
-        Platform.TWITTER:   handle_twitter,
-        Platform.FACEBOOK:  handle_facebook,
-        Platform.REDDIT:    handle_reddit,
-        Platform.VIMEO:     handle_vimeo,
-        Platform.PINTEREST: handle_pinterest,
-        Platform.WEBPAGE:   handle_webpage,
-    }
-    handler = handlers.get(detection.platform, handle_webpage)
-    try:
-        result = await handler(detection, quality=quality)
-        result.platform = detection.platform.value
-        return result
-    except Exception as e:
-        logger.error("download_handler_error",
-                     platform=detection.platform, error=str(e))
-        return DownloadResult(
-            success=False,
-            error=f"An error occurred: {str(e)}",
-            platform=detection.platform.value,
-        )
+def _parse_formats(info: dict) -> List[MediaOption]:
+    """Parse yt-dlp format list into MediaOption list."""
+    options: List[MediaOption] = []
+    seen_labels = set()
+
+    formats = info.get("formats") or []
+
+    # ── Video + Audio combined formats ────────────────────
+    video_formats = []
+    for f in formats:
+        vcodec = f.get("vcodec", "none")
+        acodec = f.get("acodec", "none")
+        ext    = f.get("ext", "mp4")
+        height = f.get("height") or 0
+        fsize  = f.get("filesize") or f.get("filesize_approx") or 0
+
+        # Only include formats with both video and audio (or video-only with note)
+        if vcodec == "none":
+            continue
+        if height < 144:
+            continue
+
+        label = f"{height}p {ext.upper()}"
+        if label in seen_labels:
+            continue
+        seen_labels.add(label)
+
+        video_formats.append(MediaOption(
+            label=label,
+            url=f.get("url", ""),
+            media_type="video",
+            format=ext,
+            file_size=int(fsize) if fsize else None,
+            width=f.get("width"),
+            height=height,
+            thumbnail=info.get("thumbnail"),
+        ))
+
+    # Sort by quality descending
+    video_formats.sort(key=lambda o: o.height or 0, reverse=True)
+
+    # Deduplicate heights — keep best of each resolution
+    seen_heights = set()
+    for vf in video_formats:
+        if vf.height not in seen_heights:
+            seen_heights.add(vf.height)
+            if vf.url:
+                options.append(vf)
+
+    # ── Audio-only formats ─────────────────────────────────
+    audio_formats = []
+    for f in formats:
+        vcodec = f.get("vcodec", "none")
+        acodec = f.get("acodec", "none")
+        ext    = f.get("ext", "m4a")
+        abr    = f.get("abr") or 0
+
+        if vcodec != "none":
+            continue
+        if acodec == "none":
+            continue
+        if ext not in ("mp3", "m4a", "opus", "webm", "ogg"):
+            continue
+
+        label = f"{int(abr)}kbps {ext.upper()}" if abr else f"Audio {ext.upper()}"
+        if label in seen_labels:
+            continue
+        seen_labels.add(label)
+
+        fsize = f.get("filesize") or f.get("filesize_approx") or 0
+        audio_formats.append(MediaOption(
+            label=label,
+            url=f.get("url", ""),
+            media_type="audio",
+            format=ext,
+            file_size=int(fsize) if fsize else None,
+            thumbnail=info.get("thumbnail"),
+        ))
+
+    audio_formats.sort(key=lambda o: int(o.label.split("k")[0]) if "kbps" in o.label else 0, reverse=True)
+
+    # Add top 2 audio options
+    for af in audio_formats[:2]:
+        if af.url:
+            options.append(af)
+
+    return options
 
 
 # ══════════════════════════════════════════════════════════
-#  DIRECT FILE HANDLER
+#  PLATFORM HANDLERS
 # ══════════════════════════════════════════════════════════
-async def handle_direct(detection: DetectionResult, **kwargs) -> DownloadResult:
-    """Handle direct media file URLs (.jpg, .mp4, .pdf, etc.)."""
-    url = detection.url
 
-    try:
-        async with _make_client() as client:
-            head = await client.head(url)
-            content_type   = head.headers.get("content-type", "application/octet-stream")
-            content_length = head.headers.get("content-length")
-            file_size = int(content_length) if content_length else None
-    except Exception:
-        content_type = "application/octet-stream"
-        file_size    = None
-
-    if file_size and file_size > settings.max_file_size_bytes:
-        return DownloadResult(
-            success=False,
-            error=f"File too large. Max: {settings.max_file_size_mb} MB",
-        )
-
-    path = urlparse(url).path
-    name = sanitize_filename(path.split("/")[-1] or "download")
-    ext  = Path(name).suffix or ".bin"
-
-    return DownloadResult(
-        success=True,
-        title=name,
-        options=[
-            MediaOption(
-                label=f"Download {ext.upper().lstrip('.')} — {name}",
-                url=url,
-                media_type=detection.media_type.value,
-                mime_type=content_type,
-                file_size=file_size,
-                format=ext.lstrip("."),
-            )
-        ],
-    )
-
-
-# ══════════════════════════════════════════════════════════
-#  YOUTUBE
-# ══════════════════════════════════════════════════════════
 async def handle_youtube(detection: DetectionResult, **kwargs) -> DownloadResult:
-    """Use RapidAPI for YouTube downloads."""
-    result = await _rapidapi_download(detection.url)
+    """YouTube: use yt-dlp directly."""
+    result = await _ytdlp_extract(detection.url)
     if result.success:
         result.title = result.title or "YouTube Video"
+    else:
+        if not result.error:
+            result.error = "Could not download this YouTube video."
     return result
 
 
-# ══════════════════════════════════════════════════════════
-#  INSTAGRAM
-# ══════════════════════════════════════════════════════════
 async def handle_instagram(detection: DetectionResult, **kwargs) -> DownloadResult:
-    """Use RapidAPI for Instagram downloads."""
-    result = await _rapidapi_download(detection.url)
+    """Instagram: yt-dlp supports Reels, posts, stories."""
+    result = await _ytdlp_extract(detection.url)
     if result.success:
         result.title = result.title or "Instagram Post"
     else:
-        # Give more helpful error messages for Instagram
-        if result.error and "private" in result.error.lower():
-            result.error = "This Instagram account is private. Only public posts can be downloaded."
-        elif result.error and ("not found" in result.error.lower() or "404" in result.error):
-            result.error = "Instagram post not found. It may have been deleted."
-        elif result.error and "429" in result.error:
-            result.error = "Too many requests. Please wait a moment and try again."
-        elif not result.options:
-            result.error = "Could not download this Instagram post. It may be private, deleted, or a live video."
+        result.error = (
+            result.error or
+            "Could not download this Instagram post. "
+            "Make sure the account is public."
+        )
     return result
 
 
-# ══════════════════════════════════════════════════════════
-#  TIKTOK
-# ══════════════════════════════════════════════════════════
-async def handle_tiktok(detection: DetectionResult, **kwargs) -> DownloadResult:
-    """Use RapidAPI for TikTok downloads."""
-    result = await _rapidapi_download(detection.url)
-    if result.success:
-        result.title = result.title or "TikTok Video"
-    return result
-
-
-# ══════════════════════════════════════════════════════════
-#  TWITTER
-# ══════════════════════════════════════════════════════════
 async def handle_twitter(detection: DetectionResult, **kwargs) -> DownloadResult:
-    """Use RapidAPI for Twitter/X downloads."""
+    """Twitter/X: try both twitter.com and x.com."""
     url = detection.url
     urls_to_try = [url]
     if "x.com" in url:
@@ -389,143 +270,87 @@ async def handle_twitter(detection: DetectionResult, **kwargs) -> DownloadResult
     elif "twitter.com" in url:
         urls_to_try.append(url.replace("twitter.com", "x.com"))
 
-    result = DownloadResult(success=False, error="")
+    result = DownloadResult(success=False)
     for try_url in urls_to_try:
-        result = await _rapidapi_download(try_url)
+        result = await _ytdlp_extract(try_url)
         if result.success:
             break
 
     if result.success:
         result.title = result.title or "Twitter Video"
     else:
-        # Give specific helpful error for Twitter
-        error = result.error or ""
-        if "Unknown error" in error:
-            result.error = (
-                "Could not download this tweet. Possible reasons:\n"
-                "• The tweet contains an image (not a video)\n"
-                "• The tweet is very old (2014 or earlier)\n"
-                "• The account is private or suspended\n"
-                "• The media has been deleted\n"
-                "Try a tweet that contains a video posted after 2018."
-            )
-        elif "private" in error.lower():
-            result.error = "This Twitter/X account is private. Only public tweets can be downloaded."
-        else:
-            result.error = (
-                result.error or
-                "Could not download this Twitter/X video. "
-                "Make sure the tweet contains a video and the account is public."
-            )
+        result.error = (
+            result.error or
+            "Could not download this tweet. Make sure it contains a video "
+            "and the account is public."
+        )
     return result
 
 
-# ══════════════════════════════════════════════════════════
-#  FACEBOOK
-# ══════════════════════════════════════════════════════════
 async def handle_facebook(detection: DetectionResult, **kwargs) -> DownloadResult:
-    """Use RapidAPI for Facebook video and Reel downloads."""
+    """Facebook: yt-dlp supports public videos and reels."""
     url = detection.url
-
-    # Build list of URL formats to try — RapidAPI supports some but not all
     urls_to_try = [url]
-
-    # Convert /reel/ID/ → /videos/ID/ and /watch?v=ID (RapidAPI understands these better)
     if "/reel/" in url:
         reel_id = re.search(r"/reel/(\d+)", url)
         if reel_id:
             vid_id = reel_id.group(1)
             urls_to_try.append(f"https://www.facebook.com/watch?v={vid_id}")
-            urls_to_try.append(f"https://www.facebook.com/video/{vid_id}/")
-            urls_to_try.append(f"https://fb.watch/{vid_id}")
 
-    # Try each URL format until one works
-    result = DownloadResult(success=False, error="")
+    result = DownloadResult(success=False)
     for try_url in urls_to_try:
-        result = await _rapidapi_download(try_url)
+        result = await _ytdlp_extract(try_url)
         if result.success:
             break
 
     if result.success:
         result.title = result.title or "Facebook Video"
     else:
-        # Friendly error messages
-        if result.error and "404" in str(result.error):
-            result.error = "Facebook video not found. It may be private or deleted."
-        elif result.error and "private" in str(result.error).lower():
-            result.error = "This Facebook video is private. Only public videos can be downloaded."
-        elif result.error and "429" in str(result.error):
-            result.error = "Too many requests. Please wait a moment and try again."
-        else:
-            result.error = (
-                "Could not download this Facebook video. "
-                "Please make sure: 1) The video is public, 2) You are logged out of Facebook, "
-                "3) Try copying the link from facebook.com/watch?v=... format instead of /reel/ URL."
-            )
+        result.error = (
+            result.error or
+            "Could not download this Facebook video. "
+            "Make sure it is public."
+        )
     return result
 
 
-# ══════════════════════════════════════════════════════════
-#  VIMEO
-# ══════════════════════════════════════════════════════════
-async def handle_vimeo(detection: DetectionResult, **kwargs) -> DownloadResult:
-    """Use RapidAPI for Vimeo downloads."""
-    result = await _rapidapi_download(detection.url)
-    if result.success:
-        result.title = result.title or "Vimeo Video"
-    return result
-
-
-# ══════════════════════════════════════════════════════════
-#  REDDIT
-# ══════════════════════════════════════════════════════════
 async def handle_reddit(detection: DetectionResult, **kwargs) -> DownloadResult:
+    """Reddit: yt-dlp handles v.redd.it videos. Images via JSON API."""
     url = detection.url
 
+    # Handle short Reddit URLs
+    if "/s/" in url:
+        async with _make_client() as client:
+            try:
+                resp = await client.get(url, headers=BROWSER_HEADERS)
+                url  = str(resp.url).split("?")[0].rstrip("/")
+            except Exception:
+                pass
+
+    # Try yt-dlp first (works for video posts)
+    result = await _ytdlp_extract(url)
+    if result.success:
+        result.title = result.title or "Reddit Post"
+        return result
+
+    # Fallback: Reddit JSON API for images/galleries
     async with _make_client() as client:
         try:
-            # Handle Reddit short URLs (/s/ format) — follow redirect first
-            if "/s/" in url:
-                redirect_resp = await client.get(
-                    url,
-                    headers=BROWSER_HEADERS,
-                    follow_redirects=True,
-                )
-                url = str(redirect_resp.url)
-
-            # Strip query params (?share_id=...&utm_...) before adding .json
-            # Otherwise URL becomes: /post/?utm_source=share.json (404)
-            clean_url = url.split("?")[0].rstrip("/")
-            json_url  = clean_url + "/.json"
-
-            resp = await client.get(
-                json_url,
-                headers={**BROWSER_HEADERS, "Accept": "application/json"},
-            )
-            if resp.status_code == 404:
-                return DownloadResult(success=False, error="Reddit post not found. It may have been deleted.")
+            json_url = url.split("?")[0].rstrip("/") + "/.json"
+            resp = await client.get(json_url,
+                headers={**BROWSER_HEADERS, "Accept": "application/json"})
+            if resp.status_code != 200:
+                return DownloadResult(success=False,
+                    error="Reddit post not found or private.")
             data = resp.json()
         except Exception as e:
             return DownloadResult(success=False, error=f"Reddit API error: {e}")
 
     options: List[MediaOption] = []
     title = "Reddit Post"
-
     try:
         post  = data[0]["data"]["children"][0]["data"]
         title = post.get("title", title)
-
-        if post.get("is_video"):
-            media     = post.get("media", {}).get("reddit_video", {})
-            video_url = media.get("fallback_url") or media.get("hls_url")
-            if video_url:
-                options.append(MediaOption(
-                    label=f"Video {media.get('height', '')}p",
-                    url=video_url,
-                    media_type="video",
-                    width=media.get("width"),
-                    height=media.get("height"),
-                ))
 
         if post.get("url", "").endswith((".jpg", ".jpeg", ".png", ".gif", ".webp")):
             options.append(MediaOption(
@@ -538,122 +363,103 @@ async def handle_reddit(detection: DetectionResult, **kwargs) -> DownloadResult:
         if post.get("is_gallery"):
             media_meta = post.get("media_metadata", {})
             for item in media_meta.values():
-                src     = item.get("s", {})
-                img_url = src.get("u") or src.get("gif")
+                src = item.get("s", {})
+                img_url = (src.get("u") or src.get("gif") or "").replace("&amp;", "&")
                 if img_url:
                     options.append(MediaOption(
                         label=f"Image {src.get('x','')}x{src.get('y','')}",
-                        url=img_url.replace("&amp;", "&"),
+                        url=img_url,
                         media_type="image",
                         width=src.get("x"),
                         height=src.get("y"),
                     ))
     except (KeyError, IndexError, TypeError) as e:
-        return DownloadResult(success=False, error=f"Could not parse Reddit data: {e}")
+        return DownloadResult(success=False,
+            error=f"Could not parse Reddit post: {e}")
+
+    if not options:
+        return DownloadResult(success=False,
+            error="No downloadable media found in this Reddit post.")
 
     return DownloadResult(success=True, title=title, options=options)
 
 
-# ══════════════════════════════════════════════════════════
-#  PINTEREST
-# ══════════════════════════════════════════════════════════
-async def handle_pinterest(detection: DetectionResult, **kwargs) -> DownloadResult:
+async def handle_tiktok(detection: DetectionResult, **kwargs) -> DownloadResult:
+    """TikTok: yt-dlp handles watermark-free downloads."""
+    result = await _ytdlp_extract(detection.url, extra_opts={
+        "extractor_args": {"tiktok": {"api_hostname": "api22-normal-c-useast2a.tiktokv.com"}}
+    })
+    if result.success:
+        result.title = result.title or "TikTok Video"
+    else:
+        result.error = result.error or "Could not download this TikTok video."
+    return result
+
+
+async def handle_direct(detection: DetectionResult, **kwargs) -> DownloadResult:
+    """Direct file URLs — image, video, audio, PDF."""
     url = detection.url
+    ext = url.split("?")[0].split(".")[-1].lower()
+    media_type = (
+        "image"    if ext in ("jpg", "jpeg", "png", "gif", "webp", "svg") else
+        "audio"    if ext in ("mp3", "wav", "ogg", "flac", "aac", "m4a") else
+        "document" if ext in ("pdf", "doc", "docx")                        else
+        "video"
+    )
     async with _make_client() as client:
         try:
-            resp = await client.get(url)
-            html = resp.text
-        except Exception as e:
-            return DownloadResult(success=False, error=str(e))
-
-    og_match    = re.search(r'<meta property="og:image"\s+content="([^"]+)"', html)
-    title_match = re.search(r'<meta property="og:title"\s+content="([^"]+)"', html)
-
-    if og_match:
-        img_url = og_match.group(1).replace("236x", "originals")
-        return DownloadResult(
-            success=True,
-            title=title_match.group(1) if title_match else "Pinterest Pin",
-            thumbnail=og_match.group(1),
-            options=[MediaOption(
-                label="Image (Original)",
-                url=img_url,
-                media_type="image",
-                format="jpg",
-            )],
-        )
-
-    return DownloadResult(success=False, error="Could not extract image from Pinterest.")
-
-
-# ══════════════════════════════════════════════════════════
-#  GENERIC WEBPAGE
-# ══════════════════════════════════════════════════════════
-async def handle_webpage(detection: DetectionResult, **kwargs) -> DownloadResult:
-    """Scrape any webpage for all image/video/audio sources."""
-    from bs4 import BeautifulSoup
-
-    url = detection.url
-    async with _make_client() as client:
-        try:
-            resp     = await client.get(url)
-            html     = resp.text
-            base_url = str(resp.url)
-        except Exception as e:
-            return DownloadResult(success=False, error=f"Could not fetch page: {e}")
-
-    soup    = BeautifulSoup(html, "lxml")
-    options: List[MediaOption] = []
-    seen:   set = set()
-
-    for img in soup.find_all("img", src=True):
-        src = urljoin(base_url, img["src"])
-        if src in seen or not src.startswith("http"):
-            continue
-        seen.add(src)
-        try:
-            validate_url(src)
+            head = await client.head(url)
+            fsize = int(head.headers.get("content-length", 0)) or None
         except Exception:
-            continue
-        options.append(MediaOption(
-            label=f"Image — {img.get('alt', src.split('/')[-1])[:50]}",
-            url=src,
-            media_type="image",
-            width=int(img.get("width", 0)) or None,
-            height=int(img.get("height", 0)) or None,
-        ))
+            fsize = None
 
-    for video in soup.find_all("video"):
-        for source in video.find_all("source", src=True):
-            src = urljoin(base_url, source["src"])
-            if src in seen:
-                continue
-            seen.add(src)
-            try:
-                validate_url(src)
-            except Exception:
-                continue
-            options.append(MediaOption(
-                label=f"Video — {src.split('/')[-1][:50]}",
-                url=src,
-                media_type="video",
-                mime_type=source.get("type"),
-            ))
-
-    og        = soup.find("meta", property="og:image")
-    thumbnail = og["content"] if og and og.get("content") else None
-    title_tag = soup.find("title")
-    title     = title_tag.get_text().strip() if title_tag else "Webpage Media"
-
-    if not options:
-        return DownloadResult(
-            success=False,
-            error="No downloadable media found on this page.",
-        )
-
+    label = ext.upper() if ext else "File"
     return DownloadResult(
         success=True,
-        title=title,
-        thumbnail=thumbnail,
-        options=options[:50],
+        title=url.split("/")[-1].split("?")[0] or "Direct File",
+        options=[MediaOption(
+            label=label,
+            url=url,
+            media_type=media_type,
+            format=ext,
+            file_size=fsize,
+        )],
     )
+
+
+# ══════════════════════════════════════════════════════════
+#  ORCHESTRATOR
+# ══════════════════════════════════════════════════════════
+_HANDLERS = {
+    Platform.YOUTUBE:   handle_youtube,
+    Platform.INSTAGRAM: handle_instagram,
+    Platform.TWITTER:   handle_twitter,
+    Platform.FACEBOOK:  handle_facebook,
+    Platform.REDDIT:    handle_reddit,
+    Platform.TIKTOK:    handle_tiktok,
+}
+
+async def process_url(detection: DetectionResult, quality: str = "best") -> DownloadResult:
+    """Route URL to correct handler based on detected platform."""
+    handler = _HANDLERS.get(detection.platform)
+    if handler:
+        try:
+            result = await handler(detection)
+            if result.success:
+                logger.info(f"download_success: platform={detection.platform.value} "
+                            f"options={len(result.options)}")
+            else:
+                logger.warning(f"download_failed: platform={detection.platform.value} "
+                               f"error={result.error}")
+            return result
+        except Exception as e:
+            logger.error(f"handler_error: platform={detection.platform.value} error={e}")
+            return DownloadResult(success=False,
+                error=f"Could not process this URL. Please try again.")
+
+    # Unknown platform — try yt-dlp anyway (covers 1000+ sites)
+    result = await _ytdlp_extract(detection.url)
+    if not result.success:
+        # Last resort: direct file
+        return await handle_direct(detection)
+    return result
