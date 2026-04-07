@@ -2,6 +2,7 @@
 fastapi==0.109.2
 uvicorn[standard]==0.27.1
 gunicorn==21.2.0
+jinja2==3.1.4
 
 # ── Database ───────────────────────────────────────────────
 sqlalchemy[asyncio]==2.0.25
@@ -10,11 +11,15 @@ alembic==1.13.1
 psycopg2-binary==2.9.9
 
 # ── Redis / Caching ────────────────────────────────────────
-redis[asyncio]==5.0.1
+redis==5.0.1
+
+# ── Task Queue ─────────────────────────────────────────────
+celery[redis]==5.3.6
 
 # ── Auth & Security ────────────────────────────────────────
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
 python-multipart==0.0.9
 
 # ── HTTP / Scraping ────────────────────────────────────────
@@ -23,15 +28,15 @@ aiohttp==3.9.3
 beautifulsoup4==4.12.3
 lxml==5.1.0
 
-# ── Media Downloader (replaces RapidAPI) ───────────────────
-yt-dlp>=2024.1.1        # Core downloader — YouTube, Instagram, Twitter, Facebook, Reddit, 1000+ sites
+# ── Media / Download ───────────────────────────────────────
+yt-dlp>=2024.1.1
 Pillow==11.0.0
 
 # ── Rate Limiting ──────────────────────────────────────────
 slowapi==0.1.9
 
 # ── Config & Validation ────────────────────────────────────
-pydantic==2.6.1
+pydantic[email]==2.6.1
 pydantic-settings==2.2.1
 python-dotenv==1.0.1
 
