@@ -155,6 +155,16 @@ html{overflow-x:hidden;}body{background:var(--bg);color:var(--text);font-family:
 .newsletter-btn:hover{background:linear-gradient(135deg,#764ba2,#667eea);transform:translateY(-2px);box-shadow:0 5px 15px rgba(102,126,234,0.45)}
 .newsletter-btn:active{transform:translateY(0)}
 .footer-bottom{text-align:center;padding-top:28px;margin-top:8px}
+@media(max-width:580px){
+  .footer-top{grid-template-columns:1fr;gap:24px}
+  .footer-section{text-align:left}
+  .footer-section h3::after{left:0;transform:none}
+  .footer-links ul li a{justify-content:flex-start}
+  .social-links-grid{justify-items:center}
+  .newsletter-form{flex-direction:column}
+  .newsletter-input{min-width:100%}
+  .newsletter-btn{width:100%}
+}
 .footer-bottom p{color:rgba(255,255,255,0.7);font-size:0.9rem;margin-bottom:8px;font-family:'Cabinet Grotesk',sans-serif}
 .footer-credits{font-size:0.85rem;color:rgba(255,255,255,0.55);margin-top:12px;font-style:italic;font-family:'Cabinet Grotesk',sans-serif}
 @keyframes heartbeat{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}
@@ -288,7 +298,7 @@ body{padding-bottom:0 !important;margin-bottom:0 !important;}.wrapper,.page-wrap
           </div>
           <div class="social-item">
             <a href="#" class="social-link telegram" aria-label="Telegram">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>
             </a>
             <span class="social-label">Telegram</span>
           </div>
